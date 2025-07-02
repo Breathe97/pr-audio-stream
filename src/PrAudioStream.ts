@@ -1,0 +1,206 @@
+export class PrAudioStream {
+  inputStream = new MediaStream() // 输入音频流 （原始音频）
+
+  outputStream = new MediaStream() // 输出音频流 （处理后音频）
+
+  inputGain = 1 // 麦克风音量
+  enhanceGain = 1 // 麦克风增强音量 1+x
+  outputGain = 1 // 扬声器音量
+
+  // 音频上下文实例
+  audioContext: AudioContext
+
+  // 输入节点（处理器的音频）
+  sourceNode!: MediaStreamAudioSourceNode
+
+  // 音量输入控制节点 (麦克风输入)
+  inputGainNode!: GainNode
+
+  // 音量输入增强节点 (麦克风增强)
+  enhanceGainNode!: GainNode
+
+  // 音频分析节点
+  analyserNode!: AnalyserNode
+
+  // 缓冲区 存储分析节点的时域数据
+  analyserArrayData!: Uint8Array
+
+  // 音量输出控制节点 （扬声器音量）
+  outputGainNode!: GainNode
+
+  // 输出节点（处理后的音频）
+  destinationNode!: MediaStreamAudioDestinationNode
+
+  // 过滤流
+  filterStream = (old_stream: MediaStream) => {
+    const new_stream = old_stream
+    return new_stream
+  }
+
+  constructor(stream: MediaStream, audioContext: AudioContext = new AudioContext()) {
+    // 通过rtc传输后的音频流需要指定一个 Audio 对象
+    {
+      const audio = new Audio()
+      audio.srcObject = stream
+    }
+
+    this.inputStream = stream
+    this.audioContext = audioContext
+
+    this.initNodes()
+
+    this.audioContext.resume()
+  }
+
+  initNodes = () => {
+    // 创建音源节点
+    this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
+
+    // 创建音量输入控制节点
+    this.inputGainNode = this.audioContext.createGain()
+    {
+      // 设置音量为1
+      this.inputGainNode.gain.setValueAtTime(this.inputGain, this.audioContext.currentTime)
+    }
+
+    // 创建音量输入控制节点
+    this.enhanceGainNode = this.audioContext.createGain()
+    {
+      // 设置音量为1
+      this.enhanceGainNode.gain.setValueAtTime(this.enhanceGain, this.audioContext.currentTime)
+    }
+
+    // 创建音频分析节点
+    this.analyserNode = this.audioContext.createAnalyser()
+    {
+      // 设置快速傅里叶变换的大小
+      this.analyserNode.fftSize = 512
+      // 创建一个缓冲区来存储分析节点的时域数据
+      this.analyserArrayData = new Uint8Array(this.analyserNode.frequencyBinCount)
+    }
+
+    // 创建音量输出控制节点
+    this.outputGainNode = this.audioContext.createGain()
+    {
+      // 设置音量为1
+      this.outputGainNode.gain.setValueAtTime(this.outputGain, this.audioContext.currentTime)
+    }
+
+    // 输出节点
+    {
+      this.destinationNode = this.audioContext.createMediaStreamDestination()
+      this.outputStream = this.destinationNode.stream
+    }
+
+    // 连接默认节点
+    {
+      const { sourceNode, inputGainNode, enhanceGainNode, analyserNode, outputGainNode, destinationNode } = this
+
+      sourceNode.connect(inputGainNode) // 音源输入节点 - 音量输入控制节点
+
+      inputGainNode.connect(enhanceGainNode) // 音量输入控制节点 - 音量增强节点
+
+      enhanceGainNode.connect(analyserNode) // 音量增强节点 - 音量分析节点
+
+      analyserNode.connect(destinationNode) // 音量输出控制节点 - 音源输出节点
+
+      analyserNode.connect(outputGainNode) // 音量分析节点 - 音量输出控制节点
+
+      outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 音源输出节点
+    }
+
+    this.setMute(true) // 默认所有音频都是静音
+  }
+
+  /**
+   * 停止流
+   */
+  stop = () => {
+    // 获取到现在的轨道
+    {
+      const tracks = this.inputStream.getTracks()
+      // 停止并删除之前的轨道
+      for (const track of tracks) {
+        track.stop()
+        this.inputStream.removeTrack(track)
+      }
+    }
+  }
+
+  /**
+   * 替换媒体
+   */
+  replaceStream = (stream: MediaStream) => {
+    const tracks = this.inputStream.getTracks()
+    for (const track of tracks) {
+      this.inputStream.removeTrack(track)
+    }
+    const [track] = stream.getAudioTracks()
+    if (track) {
+      this.inputStream.addTrack(track)
+    }
+    this.initNodes()
+  }
+
+  /**
+   * 获取数据流
+   */
+  getStream = () => {
+    const stream = this.filterStream(this.outputStream) // 过滤后的流
+    // {
+    //   const tracks = stream.getTracks()
+    //   console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: tracks`, tracks)
+    // }
+    return stream
+  }
+
+  /**
+   * 静音
+   */
+  setMute = (state: boolean = true) => {
+    if (state) {
+      this.analyserNode.disconnect(this.outputGainNode) // 静音
+    } else {
+      this.analyserNode.connect(this.outputGainNode) // 取消静音
+    }
+  }
+
+  /**
+   * 设置麦克风输入音量
+   */
+  setInputGain = (gain: number) => {
+    this.inputGain = gain
+    this.inputGainNode.gain.setValueAtTime(gain, this.audioContext.currentTime)
+  }
+
+  /**
+   * 设置麦克风增强音量
+   */
+  setEnhanceGain = async (gain: number) => {
+    this.enhanceGain = gain + 1
+    this.enhanceGainNode.gain.setValueAtTime(this.enhanceGain, this.audioContext.currentTime)
+  }
+
+  /**
+   * 设置扬声器音量
+   */
+  setOutputGain = (gain: number) => {
+    this.outputGain = gain
+    this.outputGainNode.gain.setValueAtTime(this.outputGain, this.audioContext.currentTime)
+  }
+
+  /**
+   * 获取输入音量
+   */
+  getVolume = () => {
+    const { analyserNode, analyserArrayData } = this
+    analyserNode.getByteFrequencyData(analyserArrayData)
+    let sum = 0
+    for (let i = 0; i < analyserArrayData.length; i++) {
+      sum += analyserArrayData[i]
+    }
+    // 计算平均音量
+    const averageVolume = Math.ceil(sum / analyserArrayData.length)
+    return averageVolume
+  }
+}
