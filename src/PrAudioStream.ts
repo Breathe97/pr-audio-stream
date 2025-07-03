@@ -5,6 +5,10 @@ export class PrAudioStream {
 
   inputGain = 1 // 麦克风音量
   enhanceGain = 1 // 麦克风增强音量 1+x
+
+  bgsGain = 1 // 音效音量
+  bgmGain = 1 // 音乐音量
+
   outputGain = 1 // 扬声器音量
 
   // 音频上下文实例
@@ -18,6 +22,12 @@ export class PrAudioStream {
 
   // 音量输入增强节点 (麦克风增强)
   enhanceGainNode: GainNode
+
+  // 音效控制节点 (音效音量)
+  bgsGainNode: GainNode
+
+  // 背景音乐控制节点 (背景音乐音量)
+  bgmGainNode: GainNode
 
   // 音频分析节点
   analyserNode: AnalyserNode
@@ -61,6 +71,20 @@ export class PrAudioStream {
       this.enhanceGainNode.gain.setValueAtTime(this.enhanceGain, this.audioContext.currentTime)
     }
 
+    // 创建音效输入控制节点
+    this.bgsGainNode = this.audioContext.createGain()
+    {
+      // 设置音量为1
+      this.bgsGainNode.gain.setValueAtTime(this.bgsGain, this.audioContext.currentTime)
+    }
+
+    // 创建背景音乐输入控制节点
+    this.bgmGainNode = this.audioContext.createGain()
+    {
+      // 设置音量为1
+      this.bgmGainNode.gain.setValueAtTime(this.bgmGain, this.audioContext.currentTime)
+    }
+
     // 创建音频分析节点
     this.analyserNode = this.audioContext.createAnalyser()
     {
@@ -85,13 +109,16 @@ export class PrAudioStream {
 
     // 连接默认节点
     {
-      const { sourceNode, inputGainNode, enhanceGainNode, analyserNode, outputGainNode, destinationNode } = this
+      const { sourceNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
 
       sourceNode.connect(inputGainNode) // 音源输入节点 - 音量输入控制节点
 
       inputGainNode.connect(enhanceGainNode) // 音量输入控制节点 - 音量增强节点
 
       enhanceGainNode.connect(analyserNode) // 音量增强节点 - 音量分析节点
+
+      bgsGainNode.connect(analyserNode) // 音效节点 - 音量分析节点
+      bgmGainNode.connect(analyserNode) // 背景音乐节点 - 音量分析节点
 
       analyserNode.connect(destinationNode) // 音量输出控制节点 - 音源输出节点
 
@@ -160,6 +187,22 @@ export class PrAudioStream {
   }
 
   /**
+   * 设置音效输入音量
+   */
+  setBgsGain = (gain: number) => {
+    this.bgsGain = gain
+    this.bgsGainNode.gain.setValueAtTime(gain, this.audioContext.currentTime)
+  }
+
+  /**
+   * 设置背景音乐输入音量
+   */
+  setBgmGain = (gain: number) => {
+    this.bgmGain = gain
+    this.bgmGainNode.gain.setValueAtTime(gain, this.audioContext.currentTime)
+  }
+
+  /**
    * 设置扬声器音量
    */
   setOutputGain = (gain: number) => {
@@ -183,7 +226,66 @@ export class PrAudioStream {
   }
 
   /**
-   * 添加其他音频流
+   * 音效融合
    */
-  addStream = async (stream: MediaStream) => {}
+  bgsMix = async (audioData: ArrayBuffer, options: { loop?: number } = {}) => {
+    const _options = { loop: 0, ...options }
+    const { loop } = _options
+    const buffer = await this.audioContext.decodeAudioData(audioData)
+
+    let loopCount = 0 // 循环次数
+
+    const play = () => {
+      const source = this.audioContext.createBufferSource()
+      source.buffer = buffer
+      source.loop = loop === -1
+      source.connect(this.bgmGainNode)
+      source.start(0)
+
+      if (source.loop) return
+
+      source.onended = () => {
+        // 播放完成之后断开节点
+        if (loopCount === loop) {
+          return source.disconnect(this.bgmGainNode)
+        } else {
+          play()
+          loopCount++
+        }
+      }
+    }
+    play()
+  }
+
+  /**
+   * 背景音乐融合
+   */
+  bgmMix = async (audioData: ArrayBuffer, options: { loop?: number } = {}) => {
+    const _options = { loop: 0, ...options }
+    const { loop } = _options
+    const buffer = await this.audioContext.decodeAudioData(audioData)
+
+    let loopCount = 0 // 循环次数
+
+    const play = () => {
+      const source = this.audioContext.createBufferSource()
+      source.buffer = buffer
+      source.loop = loop === -1
+      source.connect(this.bgmGainNode)
+      source.start(0)
+
+      if (source.loop) return
+
+      source.onended = () => {
+        // 播放完成之后断开节点
+        if (loopCount === loop) {
+          return source.disconnect(this.bgmGainNode)
+        } else {
+          play()
+          loopCount++
+        }
+      }
+    }
+    play()
+  }
 }

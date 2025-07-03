@@ -17,7 +17,7 @@
     </div>
     <div class="menus-item">
       <div class="name">输入音量</div>
-      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="bgsGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setBgsGain(val/100)" :max="200" /></div>
     </div>
     <div class="menus-item">
       <div class="name">融合</div>
@@ -32,7 +32,7 @@
     </div>
     <div class="menus-item">
       <div class="name">输入音量</div>
-      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="bgmGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setBgmGain(val/100)" :max="200" /></div>
     </div>
     <div class="menus-item">
       <div class="name">融合</div>
@@ -72,8 +72,13 @@ const props = defineProps({
 const gain = ref(0)
 const inputGain = ref(100)
 const enhanceGain = ref(0)
+
+const bgsGain = ref(100)
+const bgmGain = ref(100)
+
 const outputGain = ref(100)
-const mute = ref(false)
+
+const mute = ref(true)
 
 let prAudio: PrAudioStream
 
@@ -159,6 +164,9 @@ const mixBgs = ref(true)
 const addbgs = async () => {
   // @ts-ignore
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
+  const file = await fileHandle.getFile()
+  const arrayBuffer = await file.arrayBuffer()
+  prAudio.bgsMix(arrayBuffer, { loop: 3 })
 }
 const setMixBgs = (state: boolean) => {
   mixBgs.value = state
@@ -171,6 +179,7 @@ const addbgm = async () => {
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
   const file = await fileHandle.getFile()
   const arrayBuffer = await file.arrayBuffer()
+  prAudio.bgmMix(arrayBuffer, { loop: -1 })
 }
 const setMixBgm = (state: boolean) => {
   mixBgm.value = state
