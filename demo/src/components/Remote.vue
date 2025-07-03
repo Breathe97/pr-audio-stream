@@ -12,7 +12,8 @@
     <div class="menus-item">
       <div class="name">即时音效</div>
       <div class="action">
-        <div class="btn" @click="addbgs">{{ '选择文件' }}</div>
+        <div ref="audio_bgs_ref" class="action-waveSurfer"></div>
+        <div class="btn" @click="addbgs">{{ '选择音频' }}</div>
       </div>
     </div>
     <div class="menus-item">
@@ -27,7 +28,8 @@
     <div class="menus-item">
       <div class="name">背景音乐</div>
       <div class="action">
-        <div class="btn" @click="addbgm">{{ '选择文件' }}</div>
+        <div ref="audio_bgm_ref" class="action-waveSurfer"></div>
+        <div class="btn" @click="addbgm">{{ '选择音频' }}</div>
       </div>
     </div>
     <div class="menus-item">
@@ -60,6 +62,7 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
+import WaveSurfer from 'wavesurfer.js'
 import { PrAudioStream } from '../../../src/index'
 
 const props = defineProps({
@@ -68,6 +71,9 @@ const props = defineProps({
     required: true
   }
 })
+
+const audio_bgs_ref = ref()
+const audio_bgm_ref = ref()
 
 const gain = ref(0)
 const inputGain = ref(100)
@@ -81,6 +87,9 @@ const outputGain = ref(100)
 const mute = ref(false)
 
 let prAudio: PrAudioStream
+
+let wavesurfer_bgs: WaveSurfer
+let wavesurfer_bgm: WaveSurfer
 
 // 始绘制频谱图
 const audio_canvas_ref = ref()
@@ -136,7 +145,6 @@ const init = async () => {
   // 监听远端轨道
   const ontrack = async (e: any) => {
     const { track } = e
-    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: ontrack`, track)
     const stream = new MediaStream()
     stream.addTrack(track)
 
@@ -155,6 +163,9 @@ const init = async () => {
     func()
   }
   props.pc.addEventListener('track', ontrack)
+
+  wavesurfer_bgs = WaveSurfer.create({ container: audio_bgs_ref.value, waveColor: '#0097ff', progressColor: '#666666', height: 32 })
+  wavesurfer_bgm = WaveSurfer.create({ container: audio_bgm_ref.value, waveColor: '#0097ff', progressColor: '#666666', height: 32 })
 }
 
 defineExpose({ init })
@@ -166,10 +177,21 @@ const addbgs = async () => {
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
   const file = await fileHandle.getFile()
 
+  const arrayBuffer = await file.arrayBuffer()
+
+  const blob = new Blob([arrayBuffer])
+
+  const url = URL.createObjectURL(blob)
+
+  await wavesurfer_bgs.load(url)
+  wavesurfer_bgs.setMuted(true)
+
+  const buffer = wavesurfer_bgs.getDecodedData()
+
   const loop = 3 // 播放次数
   for (let index = loop; index > 0; index--) {
-    const arrayBuffer = await file.arrayBuffer()
-    await prAudio.mixAudio(arrayBuffer, 'bgs')
+    wavesurfer_bgs.play()
+    await prAudio.mixAudio(buffer, 'bgs')
     await new Promise((resolve) => setTimeout(() => resolve(true), 300))
   }
 }
@@ -184,10 +206,18 @@ const addbgm = async () => {
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
   const file = await fileHandle.getFile()
 
+  const arrayBuffer = await file.arrayBuffer()
+  const blob = new Blob([arrayBuffer])
+  const url = URL.createObjectURL(blob)
+  await wavesurfer_bgm.load(url)
+  wavesurfer_bgs.setMuted(true)
+
+  const buffer = wavesurfer_bgm.getDecodedData()
+
   const loop = 1 // 播放次数
   for (let index = loop; index > 0; index--) {
-    const arrayBuffer = await file.arrayBuffer()
-    await prAudio.mixAudio(arrayBuffer, 'bgm')
+    wavesurfer_bgm.play()
+    await prAudio.mixAudio(buffer, 'bgm')
     await new Promise((resolve) => setTimeout(() => resolve(true), 300))
   }
 }

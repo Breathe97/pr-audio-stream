@@ -179,4 +179,11 @@ init()
 .btn:hover {
   background-color: #0097ff;
 }
+
+.action-waveSurfer {
+  width: 120px;
+  height: 32px;
+  margin-right: 8px;
+  pointer-events: none;
+}
 </style>

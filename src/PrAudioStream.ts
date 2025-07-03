@@ -122,11 +122,10 @@ export class PrAudioStream {
       bgsGainNode.connect(analyserNode) // 音效节点 - 音量分析节点
       bgmGainNode.connect(analyserNode) // 背景音乐节点 - 音量分析节点
 
-      analyserNode.connect(destinationNode) // 音量输出控制节点 - 音源输出节点
+      analyserNode.connect(destinationNode) // 音量分析节点 - 远端控制输出节点
 
       analyserNode.connect(outputGainNode) // 音量分析节点 - 音量输出控制节点
-
-      outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 音源输出节点
+      outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
     }
 
     this.setMute(true) // 默认所有音频都是静音
@@ -230,7 +229,7 @@ export class PrAudioStream {
   /**
    * 融合音频
    */
-  mixAudio = (audioData: ArrayBuffer, kind: string = 'default') => {
+  mixAudio = (buffer: AudioBuffer | null, kind: 'bgs' | 'bgm' = 'bgm') => {
     return new Promise(async (resolve, reject) => {
       try {
         // 清除可能存在的播放节点
@@ -239,14 +238,15 @@ export class PrAudioStream {
           source && source.stop()
         }
 
-        const buffer = await this.audioContext.decodeAudioData(audioData)
+        const node = kind === 'bgs' ? this.bgsGainNode : this.bgmGainNode
+
         const source = this.audioContext.createBufferSource()
         this.mixAudioMap.set(kind, source)
         source.buffer = buffer
-        source.connect(this.bgmGainNode)
+        source.connect(node)
         source.onended = () => {
           // 播放完成之后断开节点
-          source.disconnect(this.bgmGainNode)
+          source.disconnect(node)
           this.mixAudioMap.delete(kind)
           resolve(true)
         }
@@ -260,8 +260,12 @@ export class PrAudioStream {
   /**
    * 停止融合音频
    */
-  mixAudioStop = (kind: string = 'default') => {
+  mixAudioStop = (kind: 'bgs' | 'bgm') => {
     const source = this.mixAudioMap.get(kind)
     source?.stop()
+  }
+
+  mixAudioaa = (kind: string = 'default') => {
+    this.bgmGainNode
   }
 }
