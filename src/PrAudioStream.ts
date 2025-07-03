@@ -265,7 +265,7 @@ export class PrAudioStream {
     source?.stop()
   }
 
-  mixAudioaa = (kind: string = 'default') => {
-    this.bgmGainNode
-  }
+  // mixAudioaa = (kind: string = 'default') => {
+  //   this.bgmGainNode
+  // }
 }
