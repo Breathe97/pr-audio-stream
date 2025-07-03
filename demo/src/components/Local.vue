@@ -4,7 +4,6 @@
       <div class="name">实时音量</div>
       <div class="action">{{ gain }}</div>
     </div>
-
     <div class="menus-item">
       <div class="name">麦克风输入</div>
       <div class="action"><el-slider style="width: 180px; padding: 0 20px" v-model="inputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setInputGain(val/100)" /></div>
@@ -34,7 +33,7 @@ const props = defineProps({
   }
 })
 
-const emits = defineEmits(['send'])
+const state = ref('')
 
 const gain = ref(0)
 const inputGain = ref(100)

@@ -2,11 +2,17 @@
   <div>
     <div class="flex">
       <div class="col">
-        <div class="col-name">发送端</div>
+        <div class="col-name">
+          <div>发送端</div>
+          <div style="font-size: 14px">{{ pc_local_state }}</div>
+        </div>
         <Local :pc="pc_local"></Local>
       </div>
       <div class="col">
-        <div class="col-name">接收端</div>
+        <div class="col-name">
+          <div>接收端</div>
+          <div style="font-size: 14px">{{ pc_remote_state }}</div>
+        </div>
         <Remote :pc="pc_remote"></Remote>
       </div>
     </div>
@@ -14,11 +20,15 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import Local from './components/Local.vue'
 import Remote from './components/Remote.vue'
 
 const pc_local = new RTCPeerConnection()
 const pc_remote = new RTCPeerConnection()
+
+const pc_local_state = ref('')
+const pc_remote_state = ref('')
 
 async function init() {
   // 注册本地webrtc回调
@@ -30,8 +40,7 @@ async function init() {
     pc_local.addEventListener('icecandidate', onicecandidate)
 
     const oniceconnectionstatechange = () => {
-      const state = pc_local.iceConnectionState
-      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pc_local: state`, state)
+      pc_local_state.value = pc_local.iceConnectionState
     }
     pc_local.addEventListener('iceconnectionstatechange', oniceconnectionstatechange)
   }
@@ -45,8 +54,7 @@ async function init() {
     pc_remote.addEventListener('icecandidate', onicecandidate)
 
     const oniceconnectionstatechange = () => {
-      const state = pc_remote.iceConnectionState
-      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pc_remote: state`, state)
+      pc_remote_state.value = pc_remote.iceConnectionState
     }
     pc_remote.addEventListener('iceconnectionstatechange', oniceconnectionstatechange)
   }
@@ -79,9 +87,12 @@ init()
   border-radius: 12px;
 }
 .col-name {
+  padding: 0 20px;
   height: 48px;
   line-height: 48px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
 }
 
 .menus {
