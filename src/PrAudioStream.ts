@@ -256,4 +256,12 @@ export class PrAudioStream {
       }
     })
   }
+
+  /**
+   * 停止融合音频
+   */
+  mixAudioStop = (kind: string = 'default') => {
+    const source = this.mixAudioMap.get(kind)
+    source?.stop()
+  }
 }

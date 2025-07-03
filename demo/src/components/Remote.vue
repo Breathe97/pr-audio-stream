@@ -1,11 +1,11 @@
 <template>
   <div class="menus">
     <div class="menus-item">
-      <div class="name">麦克风输入</div>
+      <div class="name">音频输入</div>
       <div class="action" style="padding: 0"><el-slider style="padding: 0 20px" v-model="inputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setInputGain(val/100)" /></div>
     </div>
     <div class="menus-item">
-      <div class="name">麦克风增强</div>
+      <div class="name">音频增强</div>
       <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
     </div>
     <div class="menus-span"></div>
@@ -165,8 +165,13 @@ const addbgs = async () => {
   // @ts-ignore
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
   const file = await fileHandle.getFile()
-  const arrayBuffer = await file.arrayBuffer()
-  prAudio.bgsMix(arrayBuffer, { loop: 3 })
+
+  const loop = 3 // 播放次数
+  for (let index = loop; index > 0; index--) {
+    const arrayBuffer = await file.arrayBuffer()
+    await prAudio.mixAudio(arrayBuffer, 'bgs')
+    await new Promise((resolve) => setTimeout(() => resolve(true), 300))
+  }
 }
 const setMixBgs = (state: boolean) => {
   mixBgs.value = state
@@ -178,8 +183,13 @@ const addbgm = async () => {
   // @ts-ignore
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
   const file = await fileHandle.getFile()
-  const arrayBuffer = await file.arrayBuffer()
-  prAudio.bgmMix(arrayBuffer, { loop: -1 })
+
+  const loop = 1 // 播放次数
+  for (let index = loop; index > 0; index--) {
+    const arrayBuffer = await file.arrayBuffer()
+    await prAudio.mixAudio(arrayBuffer, 'bgm')
+    await new Promise((resolve) => setTimeout(() => resolve(true), 300))
+  }
 }
 const setMixBgm = (state: boolean) => {
   mixBgm.value = state
