@@ -1,3 +1,30 @@
+// 生成静音音频轨道（无声音）
+const createMutedAudioStream = (audioContext: AudioContext) => {
+  const oscillator = audioContext.createOscillator()
+  oscillator.type = 'sine'
+  oscillator.frequency.setValueAtTime(0, audioContext.currentTime) // 零频率
+
+  // 创建增益节点（强制静音）
+  const gainNode = audioContext.createGain()
+  gainNode.gain.value = 0 // 静音设置
+
+  // 连接音频源 → 增益节点 → 输出
+  oscillator.connect(gainNode)
+  gainNode.connect(audioContext.destination)
+
+  // 启动音频源
+  oscillator.start()
+
+  // 创建媒体流目的地
+  const mediaDest = audioContext.createMediaStreamDestination()
+
+  // 将音频链路接入媒体流
+  gainNode.disconnect() // 断开原有连接
+  oscillator.connect(mediaDest)
+
+  return mediaDest.stream
+}
+
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （原始音频）
 
@@ -37,7 +64,11 @@ export class PrAudioStream {
     return new_stream
   }
 
-  constructor(stream: MediaStream, audioContext: AudioContext = new AudioContext()) {
+  constructor(stream?: MediaStream, audioContext: AudioContext = new AudioContext()) {
+    if (!stream) {
+      stream = createMutedAudioStream(audioContext)
+    }
+
     // 通过rtc传输后的音频流需要指定一个 Audio 对象
     {
       const audio = new Audio()
@@ -49,10 +80,16 @@ export class PrAudioStream {
 
     this.initNodes()
 
-    this.audioContext.resume()
+    this.setMute(true) // 默认所有音频都是静音
+
+    this.audioContext.resume() // 尝试恢复暂停状态
   }
 
   initNodes = () => {
+    if (this.sourceNode && this.inputGainNode) {
+      this.sourceNode.disconnect(this.inputGainNode)
+    }
+
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
 
@@ -90,6 +127,8 @@ export class PrAudioStream {
     {
       this.destinationNode = this.audioContext.createMediaStreamDestination()
       this.outputStream = this.destinationNode.stream
+      const audio = new Audio()
+      audio.srcObject = this.outputStream
     }
 
     // 连接默认节点
@@ -108,8 +147,6 @@ export class PrAudioStream {
 
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 音源输出节点
     }
-
-    this.setMute(true) // 默认所有音频都是静音
   }
 
   /**
@@ -147,10 +184,10 @@ export class PrAudioStream {
    */
   getStream = () => {
     const stream = this.filterStream(this.outputStream) // 过滤后的流
-    // {
-    //   const tracks = stream.getTracks()
-    //   console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: tracks`, tracks)
-    // }
+    {
+      const tracks = stream.getTracks()
+      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: getStream`, tracks)
+    }
     return stream
   }
 

@@ -62,5 +62,5 @@ const init = async () => {
   props.pc.addEventListener('track', ontrack)
 }
 
-init()
+defineExpose({ init })
 </script>

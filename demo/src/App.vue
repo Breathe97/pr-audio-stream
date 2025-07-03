@@ -4,33 +4,37 @@
       <div class="col">
         <div class="col-name">
           <div>发送端</div>
-          <div style="font-size: 14px">{{ pc_local_state }}</div>
+          <div style="font-size: 14px" :style="[`color: ${pc_local_state === 'connected' ? '#006809' : '#77290a'}`]">{{ pc_local_state }}</div>
         </div>
-        <Local :pc="pc_local"></Local>
+        <Local ref="pc_local_ref" :pc="pc_local"></Local>
       </div>
       <div class="col">
         <div class="col-name">
           <div>接收端</div>
-          <div style="font-size: 14px">{{ pc_remote_state }}</div>
+          <div style="font-size: 14px" :style="[`color: ${pc_local_state === 'connected' ? '#006809' : '#77290a'}`]">{{ pc_remote_state }}</div>
         </div>
-        <Remote :pc="pc_remote"></Remote>
+        <Remote ref="pc_remote_ref" :pc="pc_remote"></Remote>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import Local from './components/Local.vue'
 import Remote from './components/Remote.vue'
 
 const pc_local = new RTCPeerConnection()
 const pc_remote = new RTCPeerConnection()
 
+const pc_local_ref = ref()
+const pc_remote_ref = ref()
+
 const pc_local_state = ref('')
 const pc_remote_state = ref('')
 
-async function init() {
+const init = async () => {
+  await nextTick()
   // 注册本地webrtc回调
   {
     const onicecandidate = (e: any) => {
@@ -59,8 +63,10 @@ async function init() {
     pc_remote.addEventListener('iceconnectionstatechange', oniceconnectionstatechange)
   }
 
-  // 开始创建连接
-  pc_local.addTransceiver('audio', { direction: 'sendonly' })
+  await pc_local_ref.value.init()
+  await pc_remote_ref.value.init()
+
+  console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: 开始建立连接`)
 
   const offer = await pc_local.createOffer()
 

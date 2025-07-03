@@ -33,19 +33,23 @@ const props = defineProps({
   }
 })
 
-const state = ref('')
-
 const gain = ref(0)
 const inputGain = ref(100)
 const enhanceGain = ref(0)
 const outputGain = ref(100)
 const mute = ref(true)
 
-let prAudio: PrAudioStream
+const prAudio = new PrAudioStream()
 
 const init = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-  prAudio = new PrAudioStream(stream)
+  const new_stream = prAudio.getStream()
+  const [track] = new_stream.getAudioTracks()
+  props.pc.addTransceiver(track, { direction: 'sendonly' })
+
+  {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    prAudio.replaceStream(stream)
+  }
 
   const func = () => {
     gain.value = prAudio.getVolume()
@@ -53,13 +57,8 @@ const init = async () => {
   }
   func()
 
-  const new_stream = prAudio.getStream()
-  const [track] = new_stream.getAudioTracks()
-  const transceivers = props.pc.getTransceivers()
-  for (const transceiver of transceivers) {
-    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: replaceTrack`, track)
-    transceiver.sender.replaceTrack(track)
-  }
+  // prAudio.replaceStream(new_stream)
 }
-init()
+
+defineExpose({ init })
 </script>
