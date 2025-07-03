@@ -11,6 +11,8 @@ export class PrAudioStream {
 
   outputGain = 1 // 扬声器音量
 
+  mixAudioMap = new Map<string, AudioBufferSourceNode>()
+
   // 音频上下文实例
   audioContext = new AudioContext()
 
@@ -226,66 +228,32 @@ export class PrAudioStream {
   }
 
   /**
-   * 音效融合
+   * 融合音频
    */
-  bgsMix = async (audioData: ArrayBuffer, options: { loop?: number } = {}) => {
-    const _options = { loop: 0, ...options }
-    const { loop } = _options
-    const buffer = await this.audioContext.decodeAudioData(audioData)
-
-    let loopCount = 0 // 循环次数
-
-    const play = () => {
-      const source = this.audioContext.createBufferSource()
-      source.buffer = buffer
-      source.loop = loop === -1
-      source.connect(this.bgmGainNode)
-      source.start(0)
-
-      if (source.loop) return
-
-      source.onended = () => {
-        // 播放完成之后断开节点
-        if (loopCount === loop) {
-          return source.disconnect(this.bgmGainNode)
-        } else {
-          play()
-          loopCount++
+  mixAudio = (audioData: ArrayBuffer, kind: string = 'default') => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 清除可能存在的播放节点
+        {
+          const source = this.mixAudioMap.get(kind)
+          source && source.stop()
         }
-      }
-    }
-    play()
-  }
 
-  /**
-   * 背景音乐融合
-   */
-  bgmMix = async (audioData: ArrayBuffer, options: { loop?: number } = {}) => {
-    const _options = { loop: 0, ...options }
-    const { loop } = _options
-    const buffer = await this.audioContext.decodeAudioData(audioData)
-
-    let loopCount = 0 // 循环次数
-
-    const play = () => {
-      const source = this.audioContext.createBufferSource()
-      source.buffer = buffer
-      source.loop = loop === -1
-      source.connect(this.bgmGainNode)
-      source.start(0)
-
-      if (source.loop) return
-
-      source.onended = () => {
-        // 播放完成之后断开节点
-        if (loopCount === loop) {
-          return source.disconnect(this.bgmGainNode)
-        } else {
-          play()
-          loopCount++
+        const buffer = await this.audioContext.decodeAudioData(audioData)
+        const source = this.audioContext.createBufferSource()
+        this.mixAudioMap.set(kind, source)
+        source.buffer = buffer
+        source.connect(this.bgmGainNode)
+        source.onended = () => {
+          // 播放完成之后断开节点
+          source.disconnect(this.bgmGainNode)
+          this.mixAudioMap.delete(kind)
+          resolve(true)
         }
+        source.start(0)
+      } catch (error) {
+        reject(error)
       }
-    }
-    play()
+    })
   }
 }

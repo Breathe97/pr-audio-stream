@@ -91,6 +91,7 @@ init()
 .col {
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
+  box-shadow: inset 0 0 40px 40px rgba(0, 0, 0, 0.3);
 }
 .col-name {
   padding: 0 20px;
