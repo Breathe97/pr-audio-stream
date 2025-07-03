@@ -78,7 +78,7 @@ const bgmGain = ref(100)
 
 const outputGain = ref(100)
 
-const mute = ref(true)
+const mute = ref(false)
 
 let prAudio: PrAudioStream
 
