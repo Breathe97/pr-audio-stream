@@ -1,16 +1,6 @@
 <template>
   <div class="menus">
     <div class="menus-item">
-      <div class="name">实时音量</div>
-      <div class="action">
-        <div class="action-audio">
-          <div>{{ gain }}</div>
-          <canvas ref="audio_canvas_ref" class="action-audio-canvas"></canvas>
-        </div>
-      </div>
-    </div>
-    <div class="menus-span"></div>
-    <div class="menus-item">
       <div class="name">麦克风输入</div>
       <div class="action" style="padding: 0"><el-slider style="padding: 0 20px" v-model="inputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setInputGain(val/100)" /></div>
     </div>
@@ -49,6 +39,15 @@
       <div class="action"><el-switch v-model="mixBgm" @change="(state:boolean)=>setMixBgm(state)" /></div>
     </div>
     <div class="menus-span"></div>
+    <div class="menus-item">
+      <div class="name">实时音量</div>
+      <div class="action">
+        <div class="action-audio">
+          <div>{{ gain }}</div>
+          <canvas ref="audio_canvas_ref" class="action-audio-canvas"></canvas>
+        </div>
+      </div>
+    </div>
     <div class="menus-item">
       <div class="name">扬声器音量</div>
       <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="outputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setOutputGain(val/100)" /></div>
