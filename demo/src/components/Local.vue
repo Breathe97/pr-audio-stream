@@ -3,32 +3,58 @@
     <div class="menus-item">
       <div class="name">实时音量</div>
       <div class="action">
-        <div>{{ gain }}</div>
-        <canvas ref="audio_canvas_ref" class="audio-canvas"></canvas>
+        <div class="action-audio">
+          <div>{{ gain }}</div>
+          <canvas ref="audio_canvas_ref" class="action-audio-canvas"></canvas>
+        </div>
       </div>
     </div>
+    <div class="menus-span"></div>
     <div class="menus-item">
       <div class="name">麦克风输入</div>
-      <div class="action"><el-slider style="width: 180px; padding: 0 20px" v-model="inputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setInputGain(val/100)" /></div>
+      <div class="action" style="padding: 0"><el-slider style="padding: 0 20px" v-model="inputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setInputGain(val/100)" /></div>
     </div>
     <div class="menus-item">
       <div class="name">麦克风增强</div>
-      <div class="action"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
     </div>
+    <div class="menus-span"></div>
     <div class="menus-item">
       <div class="name">即时音效</div>
-      <div class="action btn" @click="addbgs">{{ '选择文件' }}</div>
+      <div class="action">
+        <div class="btn" @click="addbgs">{{ '选择文件' }}</div>
+      </div>
     </div>
+    <div class="menus-item">
+      <div class="name">输入音量</div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
+    </div>
+    <div class="menus-item">
+      <div class="name">融合</div>
+      <div class="action"><el-switch v-model="mixBgs" @change="(state:boolean)=>setMixBgs(state)" /></div>
+    </div>
+    <div class="menus-span"></div>
     <div class="menus-item">
       <div class="name">背景音乐</div>
-      <div class="action btn" @click="addbgm">{{ '选择文件' }}</div>
+      <div class="action">
+        <div class="btn" @click="addbgm">{{ '选择文件' }}</div>
+      </div>
     </div>
+    <div class="menus-item">
+      <div class="name">输入音量</div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
+    </div>
+    <div class="menus-item">
+      <div class="name">融合</div>
+      <div class="action"><el-switch v-model="mixBgm" @change="(state:boolean)=>setMixBgm(state)" /></div>
+    </div>
+    <div class="menus-span"></div>
     <div class="menus-item">
       <div class="name">扬声器音量</div>
-      <div class="action"><el-slider style="width: 180px; padding: 0 20px" v-model="outputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setOutputGain(val/100)" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="outputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setOutputGain(val/100)" /></div>
     </div>
     <div class="menus-item">
-      <div class="name">静音</div>
+      <div class="name">全部静音</div>
       <div class="action"><el-switch v-model="mute" @change="(mute:boolean)=>prAudio.setMute(mute)" /></div>
     </div>
   </div>
@@ -124,14 +150,24 @@ const init = async () => {
 defineExpose({ init })
 
 // 添加音效
+const mixBgs = ref(true)
 const addbgs = async () => {
   // @ts-ignore
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
 }
+const setMixBgs = (state: boolean) => {
+  mixBgs.value = state
+}
 
 // 添加音乐
+const mixBgm = ref(true)
 const addbgm = async () => {
   // @ts-ignore
   const [fileHandle] = await window?.showOpenFilePicker({ types: [{ description: '音频类型', accept: { 'audio/*': ['.mp3', '.gif', '.jpeg', '.jpg'] } }] })
+  const file = await fileHandle.getFile()
+  const arrayBuffer = await file.arrayBuffer()
+}
+const setMixBgm = (state: boolean) => {
+  mixBgm.value = state
 }
 </script>
