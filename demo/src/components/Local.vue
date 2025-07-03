@@ -39,25 +39,24 @@ const enhanceGain = ref(0)
 const outputGain = ref(100)
 const mute = ref(true)
 
-const prAudio = new PrAudioStream()
+let prAudio: PrAudioStream
 
 const init = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+  prAudio = new PrAudioStream(stream)
+
+  // 将流添加至发射器中
   const new_stream = prAudio.getStream()
   const [track] = new_stream.getAudioTracks()
   props.pc.addTransceiver(track, { direction: 'sendonly' })
 
-  {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-    prAudio.replaceStream(stream)
-  }
+  // 尝试获取真流并替换假数据流
 
   const func = () => {
     gain.value = prAudio.getVolume()
     requestAnimationFrame(func)
   }
   func()
-
-  // prAudio.replaceStream(new_stream)
 }
 
 defineExpose({ init })

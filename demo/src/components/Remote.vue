@@ -49,6 +49,10 @@ const init = async () => {
     const stream = new MediaStream()
     stream.addTrack(track)
 
+    // 指定一个 Audio 对象 用于接收数据
+    const audio = new Audio()
+    audio.srcObject = stream
+
     prAudio = new PrAudioStream(stream)
     prAudio.setMute(false) // 取消静音
 
