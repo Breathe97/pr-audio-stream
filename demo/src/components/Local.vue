@@ -194,6 +194,7 @@ const addbgs = async () => {
 }
 const setMixBgs = (state: boolean) => {
   mixBgs.value = state
+  prAudio.changeMix('bgs', state)
 }
 
 // 添加音乐
@@ -219,5 +220,6 @@ const addbgm = async () => {
 }
 const setMixBgm = (state: boolean) => {
   mixBgm.value = state
+  prAudio.changeMix('bgm', state)
 }
 </script>

@@ -117,12 +117,19 @@ export class PrAudioStream {
 
       inputGainNode.connect(enhanceGainNode) // 音量输入控制节点 - 音量增强节点
 
-      enhanceGainNode.connect(analyserNode) // 音量增强节点 - 音量分析节点
+      // 分支一
+      {
+        enhanceGainNode.connect(analyserNode) // 音量增强节点 - 音量分析节点
+        bgsGainNode.connect(analyserNode) // 音效节点 - 音量分析节点
+        bgmGainNode.connect(analyserNode) // 背景音乐节点 - 音量分析节点
+      }
 
-      bgsGainNode.connect(analyserNode) // 音效节点 - 音量分析节点
-      bgmGainNode.connect(analyserNode) // 背景音乐节点 - 音量分析节点
-
-      analyserNode.connect(destinationNode) // 音量分析节点 - 远端控制输出节点
+      // 分支二
+      {
+        enhanceGainNode.connect(destinationNode) // 音量增强节点 - 远端控制输出节点
+        bgsGainNode.connect(destinationNode) // 音效节点 - 远端控制输出节点
+        bgmGainNode.connect(destinationNode) // 背景音乐节点 - 远端控制输出节点
+      }
 
       analyserNode.connect(outputGainNode) // 音量分析节点 - 音量输出控制节点
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
@@ -265,7 +272,15 @@ export class PrAudioStream {
     source?.stop()
   }
 
-  // mixAudioaa = (kind: string = 'default') => {
-  //   this.bgmGainNode
-  // }
+  /**
+   * 改变融合状态
+   */
+  changeMix = (kind: 'bgs' | 'bgm', mix: boolean) => {
+    const node = kind === 'bgs' ? this.bgsGainNode : this.bgmGainNode
+    if (mix) {
+      node.connect(this.destinationNode) // 开启融合
+    } else {
+      node.disconnect(this.destinationNode) // 取消融合
+    }
+  }
 }
