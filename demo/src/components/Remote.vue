@@ -46,7 +46,6 @@ const init = async () => {
   const ontrack = async (e: any) => {
     const { track } = e
     console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: ontrack`, track)
-    // const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
     const stream = new MediaStream()
     stream.addTrack(track)
 

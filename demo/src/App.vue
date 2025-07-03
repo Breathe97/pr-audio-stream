@@ -66,7 +66,7 @@ const init = async () => {
   await pc_local_ref.value.init()
   await pc_remote_ref.value.init()
 
-  console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: 开始建立连接`)
+  console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: 建立连接`)
 
   const offer = await pc_local.createOffer()
 

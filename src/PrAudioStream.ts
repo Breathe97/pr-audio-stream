@@ -69,27 +69,20 @@ export class PrAudioStream {
       stream = createMutedAudioStream(audioContext)
     }
 
-    // 通过rtc传输后的音频流需要指定一个 Audio 对象
-    {
-      const audio = new Audio()
-      audio.srcObject = stream
-    }
-
     this.inputStream = stream
     this.audioContext = audioContext
 
     this.initNodes()
 
-    this.setMute(true) // 默认所有音频都是静音
-
     this.audioContext.resume() // 尝试恢复暂停状态
   }
 
   initNodes = () => {
-    if (this.sourceNode && this.inputGainNode) {
-      this.sourceNode.disconnect(this.inputGainNode)
+    // 指定一个 Audio 对象
+    {
+      const audio = new Audio()
+      // audio.srcObject = this.inputStream
     }
-
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
 
@@ -147,6 +140,8 @@ export class PrAudioStream {
 
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 音源输出节点
     }
+
+    this.setMute(true) // 默认所有音频都是静音
   }
 
   /**
