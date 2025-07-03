@@ -114,6 +114,7 @@ init()
 }
 .menus-item {
   width: 100%;
+  height: 32px;
   display: flex;
 }
 .name {
@@ -124,6 +125,30 @@ init()
   justify-content: flex-end;
 }
 .action {
+  position: relative;
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.audio-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+.btn {
+  padding: 4px 8px;
+  margin: auto;
+  max-width: 60px;
+  line-height: 20px;
+  border-radius: 6px;
+  background-color: #333333;
+  cursor: pointer;
+  transition: all 300ms ease-out;
+}
+.btn:hover {
+  background-color: #0097ff;
 }
 </style>

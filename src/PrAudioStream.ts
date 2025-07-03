@@ -11,25 +11,25 @@ export class PrAudioStream {
   audioContext = new AudioContext()
 
   // 输入节点（处理器的音频）
-  sourceNode!: MediaStreamAudioSourceNode
+  sourceNode: MediaStreamAudioSourceNode
 
   // 音量输入控制节点 (麦克风输入)
-  inputGainNode!: GainNode
+  inputGainNode: GainNode
 
   // 音量输入增强节点 (麦克风增强)
-  enhanceGainNode!: GainNode
+  enhanceGainNode: GainNode
 
   // 音频分析节点
-  analyserNode!: AnalyserNode
+  analyserNode: AnalyserNode
 
   // 缓冲区 存储分析节点的时域数据
-  analyserArrayData!: Uint8Array
+  analyserArrayData: Uint8Array
 
   // 音量输出控制节点 （扬声器音量）
-  outputGainNode!: GainNode
+  outputGainNode: GainNode
 
   // 输出节点（处理后的音频）
-  destinationNode!: MediaStreamAudioDestinationNode
+  destinationNode: MediaStreamAudioDestinationNode
 
   // 过滤流
   filterStream = (old_stream: MediaStream) => {
@@ -44,12 +44,6 @@ export class PrAudioStream {
 
     this.inputStream = stream
 
-    this.initNodes()
-
-    this.audioContext.resume() // 尝试恢复暂停状态
-  }
-
-  initNodes = () => {
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
 
@@ -107,6 +101,8 @@ export class PrAudioStream {
     }
 
     this.setMute(true) // 默认所有音频都是静音
+
+    this.audioContext.resume() // 尝试恢复暂停状态
   }
 
   /**
@@ -122,21 +118,6 @@ export class PrAudioStream {
         this.inputStream.removeTrack(track)
       }
     }
-  }
-
-  /**
-   * 替换媒体
-   */
-  replaceStream = (stream: MediaStream) => {
-    const tracks = this.inputStream.getTracks()
-    for (const track of tracks) {
-      this.inputStream.removeTrack(track)
-    }
-    const [track] = stream.getAudioTracks()
-    if (track) {
-      this.inputStream.addTrack(track)
-    }
-    this.initNodes()
   }
 
   /**
@@ -200,4 +181,9 @@ export class PrAudioStream {
     const averageVolume = Math.ceil(sum / analyserArrayData.length)
     return averageVolume
   }
+
+  /**
+   * 添加其他音频流
+   */
+  addStream = async (stream: MediaStream) => {}
 }
