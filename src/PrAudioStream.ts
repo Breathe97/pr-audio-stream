@@ -160,10 +160,10 @@ export class PrAudioStream {
    */
   getStream = () => {
     const stream = this.filterStream(this.outputStream) // 过滤后的流
-    {
-      const tracks = stream.getTracks()
-      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: getStream`, tracks)
-    }
+    // {
+    //   const tracks = stream.getTracks()
+    //   console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: getStream`, tracks)
+    // }
     return stream
   }
 
