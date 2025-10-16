@@ -35,7 +35,7 @@ export class PrAudioStream {
   analyserNode: AnalyserNode
 
   // 缓冲区 存储分析节点的时域数据
-  analyserArrayData: Uint8Array
+  analyserArrayData: Uint8Array<ArrayBuffer>
 
   // 音量输出控制节点 （扬声器音量）
   outputGainNode: GainNode
