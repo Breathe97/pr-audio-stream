@@ -19,6 +19,12 @@ export class PrAudioStream {
   // 输入节点（处理器的音频）
   sourceNode: MediaStreamAudioSourceNode
 
+  // 高通滤波器 (去除低频噪音)
+  highPassNode: BiquadFilterNode
+
+  // 低通滤波器 (去除高频噪音)
+  lowPassNode: BiquadFilterNode
+
   // 音量输入控制节点 (麦克风输入)
   inputGainNode: GainNode
 
@@ -58,6 +64,20 @@ export class PrAudioStream {
 
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
+
+    // 高通滤波器 - 去除低频噪音
+    {
+      this.highPassNode = this.audioContext.createBiquadFilter()
+      this.highPassNode.type = 'highpass'
+      this.highPassNode.frequency.value = 100 // 截止频率
+    }
+
+    // 低通滤波器 - 去除高频噪音
+    {
+      this.lowPassNode = this.audioContext.createBiquadFilter()
+      this.lowPassNode.type = 'lowpass'
+      this.lowPassNode.frequency.value = 8000
+    }
 
     // 创建音量输入控制节点
     this.inputGainNode = this.audioContext.createGain()
@@ -111,9 +131,13 @@ export class PrAudioStream {
 
     // 连接默认节点
     {
-      const { sourceNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
+      const { sourceNode, highPassNode, lowPassNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
 
-      sourceNode.connect(inputGainNode) // 音源输入节点 - 音量输入控制节点
+      sourceNode.connect(highPassNode)
+
+      highPassNode.connect(lowPassNode)
+
+      lowPassNode.connect(inputGainNode)
 
       inputGainNode.connect(enhanceGainNode) // 音量输入控制节点 - 音量增强节点
 
