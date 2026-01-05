@@ -55,6 +55,10 @@
       <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="outputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setOutputGain(val/100)" /></div>
     </div>
     <div class="menus-item">
+      <div class="name">降噪</div>
+      <div class="action"><el-switch v-model="denoise" @change="(denoise:boolean)=>prAudio.setDenoise(denoise)" /></div>
+    </div>
+    <div class="menus-item">
       <div class="name">全部静音</div>
       <div class="action"><el-switch v-model="mute" @change="(mute:boolean)=>prAudio.setMute(mute)" /></div>
     </div>
@@ -84,6 +88,7 @@ const bgmGain = ref(100)
 
 const outputGain = ref(100)
 
+const denoise = ref(false)
 const mute = ref(true)
 
 let prAudio: PrAudioStream
@@ -142,7 +147,7 @@ const drawSpectrum = () => {
 }
 
 const init = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 48000 }, video: false })
   prAudio = new PrAudioStream(stream)
 
   // 将流添加至发射器中

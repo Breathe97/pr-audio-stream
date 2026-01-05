@@ -1,7 +1,12 @@
+// import { Rnnoise } from '@shiguredo/rnnoise-wasm'
+// import * as rnnoise from './rnnoise/rnnoise-runtime.js'
+
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （原始音频）
 
   outputStream = new MediaStream() // 输出音频流 （处理后音频）
+
+  // rnnoise?: Rnnoise
 
   inputGain = 1 // 麦克风音量
   enhanceGain = 1 // 麦克风增强音量 1+x
@@ -19,11 +24,14 @@ export class PrAudioStream {
   // 输入节点（处理器的音频）
   sourceNode: MediaStreamAudioSourceNode
 
+  // 低通滤波器 (去除高频噪音)
+  lowPassNode: BiquadFilterNode
+
   // 高通滤波器 (去除低频噪音)
   highPassNode: BiquadFilterNode
 
-  // 低通滤波器 (去除高频噪音)
-  lowPassNode: BiquadFilterNode
+  // 人声提取滤波器（带通滤波器，聚焦人声频率）
+  filterNode: BiquadFilterNode
 
   // 音量输入控制节点 (麦克风输入)
   inputGainNode: GainNode
@@ -37,6 +45,9 @@ export class PrAudioStream {
   // 背景音乐控制节点 (背景音乐音量)
   bgmGainNode: GainNode
 
+  // @ts-ignore 噪音过滤节点
+  rnnoiseNode: RNNoiseNode
+
   // 音频分析节点
   analyserNode: AnalyserNode
 
@@ -48,6 +59,12 @@ export class PrAudioStream {
 
   // 输出节点（处理后的音频）
   destinationNode: MediaStreamAudioDestinationNode
+
+  // 是否开启降噪
+  denoise = false
+
+  // 是否静音
+  mute = true
 
   // 过滤流
   filterStream = (old_stream: MediaStream) => {
@@ -65,18 +82,26 @@ export class PrAudioStream {
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
 
-    // 高通滤波器 - 去除低频噪音
-    {
-      this.highPassNode = this.audioContext.createBiquadFilter()
-      this.highPassNode.type = 'highpass'
-      this.highPassNode.frequency.value = 100 // 截止频率
-    }
-
     // 低通滤波器 - 去除高频噪音
     {
       this.lowPassNode = this.audioContext.createBiquadFilter()
       this.lowPassNode.type = 'lowpass'
-      this.lowPassNode.frequency.value = 8000
+      this.lowPassNode.frequency.value = 3400
+    }
+
+    // 高通滤波器 - 去除低频噪音
+    {
+      this.highPassNode = this.audioContext.createBiquadFilter()
+      this.highPassNode.type = 'highpass'
+      this.highPassNode.frequency.value = 300 // 截止频率
+    }
+
+    {
+      //  创建人声提取滤波器（带通滤波器，聚焦人声频率）
+      this.filterNode = this.audioContext.createBiquadFilter()
+      this.filterNode.type = 'bandpass' // 带通滤波（保留特定频段）
+      this.filterNode.frequency.value = 1000 // 中心频率（人声主要频段300-3400Hz）
+      this.filterNode.Q.value = 1.0 // Q值（带宽，值越大越窄）
     }
 
     // 创建音量输入控制节点
@@ -131,13 +156,17 @@ export class PrAudioStream {
 
     // 连接默认节点
     {
-      const { sourceNode, highPassNode, lowPassNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
+      const { sourceNode, lowPassNode, highPassNode, filterNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
 
-      sourceNode.connect(highPassNode)
+      // sourceNode.connect(lowPassNode)
 
-      highPassNode.connect(lowPassNode)
+      // lowPassNode.connect(highPassNode)
 
-      lowPassNode.connect(inputGainNode)
+      // highPassNode.connect(filterNode)
+
+      // filterNode.connect(inputGainNode)
+
+      sourceNode.connect(inputGainNode)
 
       inputGainNode.connect(enhanceGainNode) // 音量输入控制节点 - 音量增强节点
 
@@ -155,14 +184,12 @@ export class PrAudioStream {
         bgmGainNode.connect(destinationNode) // 背景音乐节点 - 远端控制输出节点
       }
 
-      analyserNode.connect(outputGainNode) // 音量分析节点 - 音量输出控制节点
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
     }
-
-    this.setMute(true) // 默认所有音频都是静音
-
     this.audioContext.resume() // 尝试恢复暂停状态
   }
+
+  connectNodes = () => {}
 
   /**
    * 停止流
@@ -204,13 +231,34 @@ export class PrAudioStream {
 
   /**
    * 静音
+   * @param state 是否开启
    */
   setMute = (state: boolean = true) => {
-    if (state) {
-      this.analyserNode.disconnect(this.outputGainNode) // 静音
-    } else {
+    this.mute = state
+    this.analyserNode.disconnect()
+    if (state === false) {
       this.analyserNode.connect(this.outputGainNode) // 取消静音
     }
+  }
+
+  /**
+   * 降噪
+   * @param state 是否开启
+   */
+  setDenoise = async (state: boolean = true) => {
+    this.inputGainNode.disconnect()
+    if (state) {
+      // @ts-ignore
+      await RNNoiseNode.register(this.audioContext)
+      // @ts-ignore
+      this.rnnoiseNode = new RNNoiseNode(this.audioContext)
+      
+      this.inputGainNode.connect(this.rnnoiseNode)
+      this.rnnoiseNode.connect(this.enhanceGainNode)
+    } else {
+      this.inputGainNode.connect(this.enhanceGainNode)
+    }
+    this.denoise = state
   }
 
   /**

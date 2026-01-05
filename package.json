@@ -18,7 +18,10 @@
   "scripts": {
     "build": "tsc && vite build"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@shiguredo/rnnoise-wasm": "^2025.1.5",
+    "rnnoise-wasm": "^0.0.1-security"
+  },
   "devDependencies": {
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
