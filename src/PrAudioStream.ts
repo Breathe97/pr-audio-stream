@@ -1,12 +1,9 @@
-// import { Rnnoise } from '@shiguredo/rnnoise-wasm'
-// import * as rnnoise from './rnnoise/rnnoise-runtime.js'
+import { RnnoiseWorklet } from './rnnoise/RnnoiseWorklet'
 
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （原始音频）
 
   outputStream = new MediaStream() // 输出音频流 （处理后音频）
-
-  // rnnoise?: Rnnoise
 
   inputGain = 1 // 麦克风音量
   enhanceGain = 1 // 麦克风增强音量 1+x
@@ -23,15 +20,6 @@ export class PrAudioStream {
 
   // 输入节点（处理器的音频）
   sourceNode: MediaStreamAudioSourceNode
-
-  // 低通滤波器 (去除高频噪音)
-  lowPassNode: BiquadFilterNode
-
-  // 高通滤波器 (去除低频噪音)
-  highPassNode: BiquadFilterNode
-
-  // 人声提取滤波器（带通滤波器，聚焦人声频率）
-  filterNode: BiquadFilterNode
 
   // 音量输入控制节点 (麦克风输入)
   inputGainNode: GainNode
@@ -66,6 +54,10 @@ export class PrAudioStream {
   // 是否静音
   mute = true
 
+  rnnoiseWorklet = new RnnoiseWorklet()
+
+  rnnoiseWorkletNode?: AudioWorkletNode
+
   // 过滤流
   filterStream = (old_stream: MediaStream) => {
     const new_stream = old_stream
@@ -81,28 +73,6 @@ export class PrAudioStream {
 
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
-
-    // 低通滤波器 - 去除高频噪音
-    {
-      this.lowPassNode = this.audioContext.createBiquadFilter()
-      this.lowPassNode.type = 'lowpass'
-      this.lowPassNode.frequency.value = 3400
-    }
-
-    // 高通滤波器 - 去除低频噪音
-    {
-      this.highPassNode = this.audioContext.createBiquadFilter()
-      this.highPassNode.type = 'highpass'
-      this.highPassNode.frequency.value = 300 // 截止频率
-    }
-
-    {
-      //  创建人声提取滤波器（带通滤波器，聚焦人声频率）
-      this.filterNode = this.audioContext.createBiquadFilter()
-      this.filterNode.type = 'bandpass' // 带通滤波（保留特定频段）
-      this.filterNode.frequency.value = 1000 // 中心频率（人声主要频段300-3400Hz）
-      this.filterNode.Q.value = 1.0 // Q值（带宽，值越大越窄）
-    }
 
     // 创建音量输入控制节点
     this.inputGainNode = this.audioContext.createGain()
@@ -156,15 +126,7 @@ export class PrAudioStream {
 
     // 连接默认节点
     {
-      const { sourceNode, lowPassNode, highPassNode, filterNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
-
-      // sourceNode.connect(lowPassNode)
-
-      // lowPassNode.connect(highPassNode)
-
-      // highPassNode.connect(filterNode)
-
-      // filterNode.connect(inputGainNode)
+      const { sourceNode, inputGainNode, enhanceGainNode, bgsGainNode, bgmGainNode, analyserNode, outputGainNode, destinationNode } = this
 
       sourceNode.connect(inputGainNode)
 
@@ -247,14 +209,11 @@ export class PrAudioStream {
    */
   setDenoise = async (state: boolean = true) => {
     this.inputGainNode.disconnect()
+    this.rnnoiseWorklet.destroy()
     if (state) {
-      // @ts-ignore
-      await RNNoiseNode.register(this.audioContext)
-      // @ts-ignore
-      this.rnnoiseNode = new RNNoiseNode(this.audioContext)
-      
-      this.inputGainNode.connect(this.rnnoiseNode)
-      this.rnnoiseNode.connect(this.enhanceGainNode)
+      this.rnnoiseWorkletNode = await this.rnnoiseWorklet.createRnnoiseWorkletNode(this.audioContext)
+      this.inputGainNode.connect(this.rnnoiseWorkletNode)
+      this.rnnoiseWorkletNode.connect(this.enhanceGainNode)
     } else {
       this.inputGainNode.connect(this.enhanceGainNode)
     }
