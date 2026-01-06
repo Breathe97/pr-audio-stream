@@ -1,10 +1,9 @@
 // vite.config.js
 import { defineConfig } from 'vite'
 import dts from 'vite-plugin-dts'
-import vitePluginWasm from 'vite-plugin-wasm'
 
 export default defineConfig({
-  plugins: [dts({ rollupTypes: false }), vitePluginWasm()],
+  plugins: [dts({ rollupTypes: false })],
   build: {
     lib: {
       entry: 'src/index.ts',

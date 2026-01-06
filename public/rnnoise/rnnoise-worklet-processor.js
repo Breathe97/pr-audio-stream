@@ -1,11 +1,11 @@
 class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   isDestroy = false
-  rnnoise?: WebAssembly.Instance
-  rnnoiseExports?: WebAssembly.Exports
+  rnnoise = undefined
+  rnnoiseExports = undefined
 
-  state!: number // RNNoise状态指针
+  state = undefined // RNNoise状态指针
   frameSize = 0 // 帧大小（480）
-  memory!: WebAssembly.Memory // WASM内存
+  memory = undefined // WASM内存
 
   inputBuffer = new Float32Array(0) // 输入缓冲区（单声道）
   outputBuffer = new Float32Array(0) // 输出缓冲区（单声道）
@@ -46,20 +46,20 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
    * 初始化 Rnnoise
    * @param bytes
    */
-  private initRnnoise = async (bytes: BufferSource) => {
+  initRnnoise = async (bytes) => {
     try {
       if (!bytes) throw new Error('The WasmBuffer object is mandatory.')
 
       // 加载 WASM 模块
       const importObject = {
         env: {
-          emscripten_memcpy_big: (e: any) => {
+          emscripten_memcpy_big: (e) => {
             // console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: emscripten_memcpy_big`, e)
           },
-          emscripten_resize_heap: (e: any) => {
+          emscripten_resize_heap: (e) => {
             console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: emscripten_resize_heap`, e)
           },
-          __assert_fail: (e: any) => {
+          __assert_fail: (e) => {
             console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe: __assert_fail`, e)
           },
           abort: () => {
@@ -93,7 +93,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   // 输出静音
-  private outputSilence = (outputs: Float32Array[][]) => {
+  outputSilence = (outputs) => {
     if (!outputs || outputs.length === 0) return
 
     for (let output of outputs) {
@@ -103,7 +103,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   // 合并缓冲区
-  private concatBuffers = (buffer1: Float32Array<ArrayBuffer>, buffer2: Float32Array<ArrayBuffer>) => {
+  concatBuffers = (buffer1, buffer2) => {
     const combined = new Float32Array(buffer1.length + buffer2.length)
     combined.set(buffer1)
     combined.set(buffer2, buffer1.length)
@@ -111,7 +111,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   // 输出到通道
-  private outputToChannels = (outputs: Float32Array[][]) => {
+  outputToChannels = (outputs) => {
     if (!outputs || outputs.length === 0) return
 
     const outputChannels = outputs[0]
@@ -132,7 +132,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   // 处理音频帧
-  private processFrame = (frame: Float32Array<ArrayBuffer>) => {
+  processFrame = (frame) => {
     if (!this.rnnoiseExports || !this.state || !this.memory) return frame
 
     // 转换音频格式: Float32 -> Int16
@@ -174,7 +174,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
    * @param parameters
    * @returns
    */
-  private onProcess = (inputs: Float32Array[][], outputs: Float32Array[][]) => {
+  onProcess = (inputs, outputs) => {
     if (this.isDestroy) {
       return false // 停止处理
     }

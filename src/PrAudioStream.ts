@@ -1,4 +1,4 @@
-import { RnnoiseWorklet } from './rnnoise/RnnoiseWorklet'
+import { RnnoiseWorklet } from './RnnoiseWorklet'
 
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （原始音频）

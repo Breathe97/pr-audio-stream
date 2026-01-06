@@ -1,5 +1,5 @@
-import rnnoiseWorkletProcessorUrl from './rnnoise-worklet-processor.ts?url'
-import rnnoiseWasmUrl from './rnnoise.wasm?url'
+import rnnoiseWorkletProcessorUrl from '../public/rnnoise/rnnoise-worklet-processor.js?url'
+import rnnoiseWasmUrl from '../public/rnnoise/rnnoise.wasm?url'
 
 export class RnnoiseWorklet {
   // 音频上下文实例
@@ -14,6 +14,7 @@ export class RnnoiseWorklet {
   createRnnoiseWorkletNode = async (audioContext: AudioContext) => {
     this.destroy()
     this.audioContext = audioContext
+
     await this.audioContext.audioWorklet.addModule(rnnoiseWorkletProcessorUrl)
     this.rnnoiseWorkletNode = new AudioWorkletNode(this.audioContext, 'rnnoise-worklet-processor')
 

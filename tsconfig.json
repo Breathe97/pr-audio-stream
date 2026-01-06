@@ -20,7 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "strictNullChecks": true
   },
-  "include": ["src"],
+  "include": ["src", "public/rnnoise"],
   "emitDeclarationOnly": true,
   "declaration": true
 }
