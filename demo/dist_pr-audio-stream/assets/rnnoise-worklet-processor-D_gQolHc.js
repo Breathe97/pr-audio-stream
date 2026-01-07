@@ -1,52 +1,21 @@
-// 声明 AudioWorkletGlobalScope 接口
-declare const AudioWorkletProcessor: {
-  prototype: AudioWorkletProcessor
-  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor
-}
-
-declare function registerProcessor(name: string, processorCtor: typeof AudioWorkletProcessor): void
-
-interface AudioWorkletNodeOptions {
-  numberOfInputs?: number
-  numberOfOutputs?: number
-  outputChannelCount?: number[]
-  parameterData?: Record<string, number>
-}
-
-interface AudioWorkletProcessor {
-  readonly port: MessagePort
-  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean
-}
-
-type WasmExports = WebAssembly.Exports & {
-  rnnoise_create: () => number
-  rnnoise_get_frame_size: () => number
-  rnnoise_process_frame: (state: number, outputPtr: number, inputPtr: number) => number
-  rnnoise_destroy: (state: number) => void
-  malloc: (size: number) => number
-  free: (ptr: number) => void
-  memory: WebAssembly.Memory
-  __wasm_call_ctors?: () => void
-}
-
 class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
-  private isDestroy: boolean = false
-  private rnnoiseModule?: WasmExports
-  private frameSize: number = 0
-  private state: number = 0
-  private pcmInputBuf: number = 0
-  private pcmOutputBuf: number = 0
-  private memory?: WebAssembly.Memory
-
-  // 简化缓冲区管理
-  private inputSamples: Float32Array = new Float32Array(0)
-  private outputSamples: Float32Array = new Float32Array(0)
-
   constructor() {
     super()
 
-    this.port.onmessage = async (event: MessageEvent<{ type: string; rnnoiseWasmBuffer?: ArrayBuffer }>) => {
-      const { data } = event
+    this.isDestroy = false
+    this.rnnoiseModule = null
+    this.frameSize = 0
+    this.state = 0
+    this.pcmInputBuf = 0
+    this.pcmOutputBuf = 0
+    this.memory = null
+
+    // 简化缓冲区管理
+    this.inputSamples = new Float32Array(0)
+    this.outputSamples = new Float32Array(0)
+
+    this.port.onmessage = async (event) => {
+      const data = event.data
       switch (data.type) {
         case 'init':
           if (data.rnnoiseWasmBuffer) {
@@ -67,24 +36,24 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
   /**
    * 初始化 RNNoise WASM 模块
-   * @param bytes WASM 二进制数据
+   * @param {ArrayBuffer} bytes WASM 二进制数据
    */
-  private initRnnoise = async (bytes: ArrayBuffer): Promise<void> => {
+  async initRnnoise(bytes) {
     try {
       // WASM 导入函数
       const wasmImports = {
-        __assert_fail: (condition: number, filename: number, line: number, func: number) => {
+        __assert_fail: (condition, filename, line, func) => {
           console.error('Assertion failed:', { condition, filename, line, func })
         },
-        emscripten_resize_heap: (newSize: number) => {
+        emscripten_resize_heap: (newSize) => {
           console.log('Resizing heap to:', newSize)
           return 0
         },
-        fd_write: (fd: number, iov: number, iovcnt: number, pnum: number) => {
+        fd_write: (fd, iov, iovcnt, pnum) => {
           console.log('Writing to file descriptor:', fd)
           return 0
         },
-        emscripten_memcpy_big: (dest: number, src: number, count: number) => {
+        emscripten_memcpy_big: (dest, src, count) => {
           if (!this.memory) return dest
           const destView = new Uint8Array(this.memory.buffer, dest, count)
           const srcView = new Uint8Array(this.memory.buffer, src, count)
@@ -102,7 +71,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
         wasi_snapshot_preview1: wasmImports
       })
 
-      const rnnoiseModule = instance.exports as WasmExports
+      const rnnoiseModule = instance.exports
       this.rnnoiseModule = rnnoiseModule
       this.memory = rnnoiseModule.memory
 
@@ -153,10 +122,10 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
   /**
    * 处理音频帧 - 修复输入格式问题
-   * @param frame 输入音频帧 (Float32Array)
-   * @returns 处理后的音频帧 (Float32Array)
+   * @param {Float32Array} frame 输入音频帧
+   * @returns {Float32Array} 处理后的音频帧
    */
-  private processFrame = (frame: Float32Array): Float32Array => {
+  processFrame(frame) {
     if (!this.rnnoiseModule || !this.state || !this.memory || !this.pcmInputBuf || !this.pcmOutputBuf) {
       console.warn('RNNoise not initialized')
       return frame
@@ -221,12 +190,11 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
   /**
    * 音频处理入口 - 修复缓冲区管理
-   * @param inputs 输入通道数据 [通道][样本]
-   * @param outputs 输出通道数据 [通道][样本]
-   * @param parameters 参数
-   * @returns 是否继续处理
+   * @param {Array} inputs 输入通道数据 [通道][样本]
+   * @param {Array} outputs 输出通道数据 [通道][样本]
+   * @returns {boolean} 是否继续处理
    */
-  onProcess = (inputs: Float32Array[][], outputs: Float32Array[][]): boolean => {
+  onProcess(inputs, outputs) {
     if (this.isDestroy) {
       return false // 停止处理
     }
@@ -277,10 +245,10 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
   /**
    * 合并多个声道为单声道
-   * @param channels 输入通道数组
-   * @returns 合并后的单声道音频
+   * @param {Array} channels 输入通道数组
+   * @returns {Float32Array} 合并后的单声道音频
    */
-  private mergeChannels = (channels: Float32Array[]): Float32Array => {
+  mergeChannels(channels) {
     if (channels.length === 0) return new Float32Array(0)
     if (channels.length === 1) return channels[0].slice() // 返回副本
 
@@ -311,9 +279,9 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
   /**
    * 输出静音到所有通道
-   * @param outputs 输出通道数组
+   * @param {Array} outputs 输出通道数组
    */
-  private outputSilence = (outputs: Float32Array[][]) => {
+  outputSilence(outputs) {
     for (const output of outputs) {
       for (const channel of output) {
         channel.fill(0)
@@ -323,9 +291,9 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
   /**
    * 将输出样本复制到输出通道
-   * @param outputs 输出通道数组
+   * @param {Array} outputs 输出通道数组
    */
-  private outputToChannels = (outputs: Float32Array[][]) => {
+  outputToChannels(outputs) {
     if (this.outputSamples.length === 0) return
 
     // 计算可以复制的最大样本数
@@ -361,7 +329,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   /**
    * 销毁资源
    */
-  destroy = (): void => {
+  destroy() {
     this.isDestroy = true
 
     if (this.rnnoiseModule) {
@@ -382,8 +350,8 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
         this.pcmOutputBuf = 0
       }
 
-      this.rnnoiseModule = undefined
-      this.memory = undefined
+      this.rnnoiseModule = null
+      this.memory = null
     }
 
     // 清空缓冲区
