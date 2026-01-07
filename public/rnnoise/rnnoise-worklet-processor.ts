@@ -38,9 +38,9 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   private pcmOutputBuf: number = 0
   private memory?: WebAssembly.Memory
 
-  // 音频缓冲区
-  private inputBuffer: Float32Array = new Float32Array(0)
-  private outputBuffer: Float32Array = new Float32Array(0)
+  // 简化缓冲区管理
+  private inputSamples: Float32Array = new Float32Array(0)
+  private outputSamples: Float32Array = new Float32Array(0)
 
   constructor() {
     super()
@@ -152,7 +152,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * 处理音频帧 - 恢复核心功能
+   * 处理音频帧 - 修复了提前返回的问题
    * @param frame 输入音频帧 (Float32Array)
    * @returns 处理后的音频帧 (Float32Array)
    */
@@ -222,26 +222,26 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
     // 合并多声道为单声道
     const monoInput = this.mergeChannels(inputSources)
 
-    // 添加到输入缓冲区
-    const newInputBuffer = new Float32Array(this.inputBuffer.length + monoInput.length)
-    newInputBuffer.set(this.inputBuffer)
-    newInputBuffer.set(monoInput, this.inputBuffer.length)
-    this.inputBuffer = newInputBuffer
+    // 添加到输入样本队列
+    const newInputSamples = new Float32Array(this.inputSamples.length + monoInput.length)
+    newInputSamples.set(this.inputSamples)
+    newInputSamples.set(monoInput, this.inputSamples.length)
+    this.inputSamples = newInputSamples
 
     // 处理完整帧
-    while (this.inputBuffer.length >= this.frameSize) {
+    while (this.inputSamples.length >= this.frameSize) {
       // 取出一帧
-      const frame = this.inputBuffer.slice(0, this.frameSize)
-      this.inputBuffer = this.inputBuffer.slice(this.frameSize)
+      const frame = this.inputSamples.slice(0, this.frameSize)
+      this.inputSamples = this.inputSamples.slice(this.frameSize)
 
       // 处理帧
       const processedFrame = this.processFrame(frame)
 
-      // 添加到输出缓冲区
-      const newOutputBuffer = new Float32Array(this.outputBuffer.length + processedFrame.length)
-      newOutputBuffer.set(this.outputBuffer)
-      newOutputBuffer.set(processedFrame, this.outputBuffer.length)
-      this.outputBuffer = newOutputBuffer
+      // 添加到输出样本队列
+      const newOutputSamples = new Float32Array(this.outputSamples.length + processedFrame.length)
+      newOutputSamples.set(this.outputSamples)
+      newOutputSamples.set(processedFrame, this.outputSamples.length)
+      this.outputSamples = newOutputSamples
     }
 
     // 输出处理后的音频
@@ -264,10 +264,21 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
     for (let i = 0; i < length; i++) {
       let sum = 0
+      let validCount = 0
+
       for (let ch = 0; ch < channels.length; ch++) {
-        sum += channels[ch][i] || 0
+        if (i < channels[ch].length) {
+          const sample = channels[ch][i]
+          // 过滤掉无效值
+          if (isFinite(sample)) {
+            sum += sample
+            validCount++
+          }
+        }
       }
-      merged[i] = sum / channels.length
+
+      // 计算平均值，避免除以零
+      merged[i] = validCount > 0 ? sum / validCount : 0
     }
 
     return merged
@@ -286,14 +297,14 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * 将输出缓冲区数据复制到输出通道
+   * 将输出样本复制到输出通道
    * @param outputs 输出通道数组
    */
   private outputToChannels = (outputs: Float32Array[][]): void => {
-    if (this.outputBuffer.length === 0) return
+    if (this.outputSamples.length === 0) return
 
     // 计算可以复制的最大样本数
-    let samplesToCopy = this.outputBuffer.length
+    let samplesToCopy = this.outputSamples.length
     for (const output of outputs) {
       for (const channel of output) {
         samplesToCopy = Math.min(samplesToCopy, channel.length)
@@ -303,20 +314,22 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
     if (samplesToCopy === 0) return
 
     // 复制数据到所有通道
-    for (const output of outputs) {
-      for (const channel of output) {
-        const copyLength = Math.min(samplesToCopy, channel.length)
-        for (let i = 0; i < copyLength; i++) {
-          channel[i] = this.outputBuffer[i]
+    for (let i = 0; i < samplesToCopy; i++) {
+      const sample = this.outputSamples[i]
+      for (const output of outputs) {
+        for (const channel of output) {
+          if (i < channel.length) {
+            channel[i] = sample
+          }
         }
       }
     }
 
-    // 更新输出缓冲区
-    if (this.outputBuffer.length > samplesToCopy) {
-      this.outputBuffer = this.outputBuffer.slice(samplesToCopy)
+    // 更新输出样本队列
+    if (this.outputSamples.length > samplesToCopy) {
+      this.outputSamples = this.outputSamples.slice(samplesToCopy)
     } else {
-      this.outputBuffer = new Float32Array(0)
+      this.outputSamples = new Float32Array(0)
     }
   }
 
@@ -349,8 +362,8 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
     }
 
     // 清空缓冲区
-    this.inputBuffer = new Float32Array(0)
-    this.outputBuffer = new Float32Array(0)
+    this.inputSamples = new Float32Array(0)
+    this.outputSamples = new Float32Array(0)
   }
 }
 
