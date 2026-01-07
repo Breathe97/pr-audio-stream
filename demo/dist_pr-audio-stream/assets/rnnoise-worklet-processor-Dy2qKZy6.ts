@@ -80,7 +80,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
           console.log('Resizing heap to:', newSize)
           return 0
         },
-        fd_write: (fd: number) => {
+        fd_write: (fd: number, iov: number, iovcnt: number, pnum: number) => {
           console.log('Writing to file descriptor:', fd)
           return 0
         },
