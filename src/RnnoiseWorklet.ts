@@ -1,4 +1,4 @@
-import rnnoiseWorkletProcessorUrl from '../public/rnnoise/rnnoise-worklet-processor.js?url'
+import rnnoiseWorkletProcessorUrl from '../public/rnnoise/rnnoise-worklet-processor.ts?url'
 import rnnoiseWasmUrl from '../public/rnnoise/rnnoise.wasm?url'
 
 export class RnnoiseWorklet {
@@ -21,6 +21,7 @@ export class RnnoiseWorklet {
     if (!this.rnnoiseWasmBuffer) {
       const response = await fetch(rnnoiseWasmUrl)
       this.rnnoiseWasmBuffer = await response.arrayBuffer()
+      // this.rnnoiseWasmBuffer = findWasmBinary()
     }
 
     this.rnnoiseWorkletNode?.port.postMessage({ type: 'init', rnnoiseWasmBuffer: this.rnnoiseWasmBuffer })
