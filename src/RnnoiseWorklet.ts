@@ -1,4 +1,4 @@
-import rnnoiseWorkletProcessorUrl from '../public/rnnoise/rnnoise-worklet-processor.ts?url'
+import rnnoiseWorkletProcessorUrl from '../public/rnnoise/rnnoise-worklet-processor.js?url'
 import rnnoiseWasmUrl from '../public/rnnoise/rnnoise.wasm?url'
 
 export class RnnoiseWorklet {
