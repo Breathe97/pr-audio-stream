@@ -21,10 +21,9 @@ export class RnnoiseWorklet {
     if (!this.rnnoiseWasmBuffer) {
       const response = await fetch(rnnoiseWasmUrl)
       this.rnnoiseWasmBuffer = await response.arrayBuffer()
-      // this.rnnoiseWasmBuffer = findWasmBinary()
     }
 
-    this.rnnoiseWorkletNode?.port.postMessage({ type: 'init', rnnoiseWasmBuffer: this.rnnoiseWasmBuffer })
+    this.rnnoiseWorkletNode?.port.postMessage({ type: 'init', rnnoiseWasmBuffer: this.rnnoiseWasmBuffer, debug: true })
 
     return this.rnnoiseWorkletNode
   }

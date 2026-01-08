@@ -148,7 +148,16 @@ const drawSpectrum = () => {
 }
 
 const init = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 48000 }, video: false })
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      // autoGainControl: false,
+      sampleRate: 48000
+    },
+    video: false
+  })
+
   prAudio = new PrAudioStream(stream)
 
   // 将流添加至发射器中

@@ -2,6 +2,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
 
+    this.debug = false
     this.isDestroy = false
     this.rnnoiseModule = null
     this.frameSize = 0
@@ -19,6 +20,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
       switch (data.type) {
         case 'init':
           if (data.rnnoiseWasmBuffer) {
+            this.debug = data.debug
             await this.initRnnoise(data.rnnoiseWasmBuffer)
           }
           break
@@ -121,7 +123,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * 处理音频帧 - 修复输入格式问题
+   * 处理音频帧
    * @param {Float32Array} frame 输入音频帧
    * @returns {Float32Array} 处理后的音频帧
    */
@@ -163,7 +165,7 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
       // 调用降噪函数
       const vad = this.rnnoiseModule.rnnoise_process_frame(this.state, this.pcmOutputBuf, this.pcmInputBuf)
-      console.log('VAD result:', vad)
+      // console.log('VAD result:', vad)
 
       // 创建输出内存视图
       const outputView = new Float32Array(this.memory.buffer, this.pcmOutputBuf, this.frameSize)
