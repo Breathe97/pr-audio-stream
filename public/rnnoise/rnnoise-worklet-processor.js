@@ -101,19 +101,19 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
       // 获取帧大小（通常为 480）
       this.frameSize = rnnoiseModule.rnnoise_get_frame_size()
-      console.log('Detected frame size:', this.frameSize)
+      // console.log('Detected frame size:', this.frameSize)
 
       // 分配 PCM 缓冲区（每个样本 4 字节）
       this.pcmInputBuf = rnnoiseModule.malloc(this.frameSize * 4)
       this.pcmOutputBuf = rnnoiseModule.malloc(this.frameSize * 4)
 
-      console.log('RNNoise initialized:', {
-        state: this.state,
-        frameSize: this.frameSize,
-        inputBuf: this.pcmInputBuf,
-        outputBuf: this.pcmOutputBuf,
-        memorySize: this.memory.buffer.byteLength
-      })
+      // console.log('RNNoise initialized:', {
+      //   state: this.state,
+      //   frameSize: this.frameSize,
+      //   inputBuf: this.pcmInputBuf,
+      //   outputBuf: this.pcmOutputBuf,
+      //   memorySize: this.memory.buffer.byteLength
+      // })
     } catch (error) {
       console.error('RNNoise initialization failed:', error)
     }
@@ -142,8 +142,8 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
 
     try {
       // 调试：记录输入音频统计信息
-      const inputMax = Math.max(...frame.map(Math.abs))
-      console.log(`Input frame max amplitude: ${inputMax.toFixed(4)}`)
+      // const inputMax = Math.max(...frame.map(Math.abs))
+      // console.log(`Input frame max amplitude: ${inputMax.toFixed(4)}`)
 
       // 修复输入格式问题：RNNoise 期望 int16 范围 [-32768, 32767]
       // 但浏览器提供的是 float32 范围 [-1, 1]
@@ -198,9 +198,9 @@ class RnnoiseWorkletProcessor extends AudioWorkletProcessor {
       return false // 停止处理
     }
 
-    // 未初始化时输出静音
+    // 未初始化时输出原声
     if (!this.rnnoiseModule || !this.state || !this.memory || !this.pcmInputBuf || !this.pcmOutputBuf) {
-      this.outputSilence(outputs)
+      this.outputSilence(inputs)
       return true
     }
 
