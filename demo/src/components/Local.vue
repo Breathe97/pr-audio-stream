@@ -66,7 +66,6 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
-import { createMutedAudioStream } from 'pr-tools'
 import WaveSurfer from 'wavesurfer.js'
 import { PrAudioStream } from '../../../src/index'
 // import { PrAudioStream } from '../../../dist/index.js'
