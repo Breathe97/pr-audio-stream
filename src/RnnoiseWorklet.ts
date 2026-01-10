@@ -23,7 +23,7 @@ export class RnnoiseWorklet {
       this.rnnoiseWasmBuffer = await response.arrayBuffer()
     }
 
-    this.rnnoiseWorkletNode?.port.postMessage({ type: 'init', rnnoiseWasmBuffer: this.rnnoiseWasmBuffer, debug: true })
+    this.rnnoiseWorkletNode?.port.postMessage({ type: 'init', rnnoiseWasmBuffer: this.rnnoiseWasmBuffer, debug: false })
 
     return this.rnnoiseWorkletNode
   }
