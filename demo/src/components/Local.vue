@@ -66,6 +66,7 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
+import { createMutedAudioStream } from 'pr-tools'
 import WaveSurfer from 'wavesurfer.js'
 import { PrAudioStream } from '../../../src/index'
 // import { PrAudioStream } from '../../../dist/index.js'
@@ -148,15 +149,7 @@ const drawSpectrum = () => {
 }
 
 const init = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      // autoGainControl: false,
-      sampleRate: 48000
-    },
-    video: false
-  })
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 }, video: false })
 
   prAudio = new PrAudioStream(stream)
 
@@ -164,8 +157,6 @@ const init = async () => {
   const new_stream = prAudio.getStream()
   const [track] = new_stream.getAudioTracks()
   props.pc.addTransceiver(track, { direction: 'sendonly' })
-
-  // 尝试获取真流并替换假数据流
 
   const func = () => {
     gain.value = prAudio.getVolume()

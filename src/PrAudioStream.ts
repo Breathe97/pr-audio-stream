@@ -148,10 +148,29 @@ export class PrAudioStream {
 
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
     }
+
     this.audioContext.resume() // 尝试恢复暂停状态
   }
 
-  connectNodes = () => {}
+  private _changeSource = () => {
+    // 连接默认节点
+    this.sourceNode.disconnect()
+    this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
+    this.sourceNode.connect(this.inputGainNode)
+  }
+
+  /**
+   * 替换轨道
+   * @param track MediaStreamTrack
+   */
+  replaceTrack = (track: MediaStreamTrack) => {
+    const tracks = this.inputStream.getTracks()
+    for (const track of tracks) {
+      this.inputStream.removeTrack(track)
+    }
+    this.inputStream.addTrack(track)
+    this._changeSource()
+  }
 
   /**
    * 停止流
