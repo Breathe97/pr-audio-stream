@@ -65,11 +65,11 @@ export class PrAudioStream {
   }
 
   constructor(track: MediaStreamTrack, audioContext?: AudioContext) {
+    this.inputStream.addTrack(track)
+
     if (audioContext) {
       this.audioContext = audioContext
     }
-
-    this.inputStream.addTrack(track)
 
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
