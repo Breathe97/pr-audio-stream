@@ -64,8 +64,8 @@ export class PrAudioStream {
     return new_stream
   }
 
-  constructor(track: MediaStreamTrack, audioContext?: AudioContext) {
-    this.inputStream.addTrack(track)
+  constructor(stream: MediaStream, audioContext?: AudioContext) {
+    this.inputStream = stream
 
     if (audioContext) {
       this.audioContext = audioContext
