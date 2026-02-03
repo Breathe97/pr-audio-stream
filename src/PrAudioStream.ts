@@ -72,11 +72,11 @@ export class PrAudioStream {
   }
 
   constructor(stream: MediaStream, audioContext?: AudioContext) {
+    this.inputStream = stream
+
     if (audioContext) {
       this.audioContext = audioContext
     }
-
-    this.inputStream = stream
 
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
