@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "element-plus": "^2.10.2",
+    "pr-rnnoise": "^0.1.0",
     "pr-tools": "^1.6.7",
     "vue": "^3.4.37",
     "wavesurfer.js": "^7.9.9"
