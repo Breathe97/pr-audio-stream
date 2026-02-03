@@ -1,4 +1,11 @@
-import { RnnoiseWorklet } from './RnnoiseWorklet'
+interface RnnoiseWorkletInstance {
+  createRnnoiseWorkletNode: (audioContext: AudioContext) => Promise<AudioWorkletNode>
+  destroy: () => void
+}
+
+interface PrRnnoise {
+  RnnoiseWorklet: new () => RnnoiseWorkletInstance
+}
 
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （原始音频）
@@ -54,7 +61,7 @@ export class PrAudioStream {
   // 是否静音
   mute = true
 
-  rnnoiseWorklet = new RnnoiseWorklet()
+  rnnoiseWorklet?: RnnoiseWorkletInstance
 
   rnnoiseWorkletNode?: AudioWorkletNode
 
@@ -152,6 +159,13 @@ export class PrAudioStream {
     this.audioContext.resume() // 尝试恢复暂停状态
   }
 
+  /**
+   * 使用插件
+   */
+  use = ({ rnnoise }: { rnnoise: PrRnnoise }) => {
+    this.rnnoiseWorklet = new rnnoise.RnnoiseWorklet()
+  }
+
   private _changeSource = () => {
     // 连接默认节点
     this.sourceNode.disconnect()
@@ -227,6 +241,7 @@ export class PrAudioStream {
    * @param state 是否开启
    */
   setDenoise = async (state: boolean = true) => {
+    if (!this.rnnoiseWorklet) return
     this.inputGainNode.disconnect()
     this.rnnoiseWorklet.destroy()
     if (state) {
