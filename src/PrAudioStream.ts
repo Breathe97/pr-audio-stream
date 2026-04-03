@@ -324,18 +324,6 @@ export class PrAudioStream {
   }
 
   /**
-   * 基于当前 `analyserArrayData` 计算平均音量（不会再次访问 AnalyserNode）。
-   */
-  getAverageVolumeFromAnalyserArray = () => {
-    const { analyserArrayData } = this
-    let sum = 0
-    for (let i = 0; i < analyserArrayData.length; i++) {
-      sum += analyserArrayData[i]
-    }
-    return Math.ceil(sum / analyserArrayData.length)
-  }
-
-  /**
    * 获取输入音量
    */
   getVolume = () => {
