@@ -32,5 +32,7 @@
     "type": "git",
     "url": "https://github.com/Breathe97/pr-audio-stream"
   },
-  "dependencies": {}
+  "dependencies": {
+    "pr-audio-stream": "^0.2.9"
+  }
 }
