@@ -1,3 +1,5 @@
+import { NotEmptyFilterWorklet } from './worklets/NotEmptyFilter'
+
 interface RnnoiseWorkletInstance {
   createRnnoiseWorkletNode: (audioContext: AudioContext) => Promise<AudioWorkletNode>
   destroy: () => void
@@ -61,9 +63,16 @@ export class PrAudioStream {
   // 是否静音
   mute = true
 
+  // 是否强制非空数据
+  notEmpty = true
+
   rnnoiseWorklet?: RnnoiseWorkletInstance
 
   rnnoiseWorkletNode?: AudioWorkletNode
+
+  notEmptyFilterWorklet = new NotEmptyFilterWorklet()
+
+  notEmptyFilterWorkletNode?: AudioWorkletNode
 
   // 过滤流
   filterStream = (old_stream: MediaStream) => {
@@ -255,6 +264,26 @@ export class PrAudioStream {
   }
 
   /**
+   * 非空填充
+   * @param state 是否开启
+   */
+  setNotEmpty = async (state: boolean = true) => {
+    if (!this.notEmptyFilterWorkletNode) return
+    this.enhanceGainNode.disconnect()
+    this.notEmptyFilterWorklet.destroy()
+    if (state) {
+      if (this.notEmpty === true) {
+        this.notEmptyFilterWorkletNode = await this.notEmptyFilterWorklet.createNotEmptyFilterWorkletNode(this.audioContext)
+      }
+      this.enhanceGainNode.connect(this.notEmptyFilterWorkletNode)
+      this.notEmptyFilterWorkletNode.connect(this.analyserNode)
+    } else {
+      this.enhanceGainNode.connect(this.analyserNode)
+    }
+    this.notEmpty = state
+  }
+
+  /**
    * 设置麦克风输入音量
    */
   setInputGain = (gain: number) => {
@@ -292,6 +321,18 @@ export class PrAudioStream {
   setOutputGain = (gain: number) => {
     this.outputGain = gain
     this.outputGainNode.gain.setValueAtTime(this.outputGain, this.audioContext.currentTime)
+  }
+
+  /**
+   * 基于当前 `analyserArrayData` 计算平均音量（不会再次访问 AnalyserNode）。
+   */
+  getAverageVolumeFromAnalyserArray = () => {
+    const { analyserArrayData } = this
+    let sum = 0
+    for (let i = 0; i < analyserArrayData.length; i++) {
+      sum += analyserArrayData[i]
+    }
+    return Math.ceil(sum / analyserArrayData.length)
   }
 
   /**

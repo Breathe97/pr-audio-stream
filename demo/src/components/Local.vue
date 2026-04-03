@@ -63,6 +63,10 @@
       <div class="name">全部静音</div>
       <div class="action"><el-switch v-model="mute" @change="(mute: boolean) => prAudio.setMute(mute)" /></div>
     </div>
+    <div class="menus-item">
+      <div class="name">填充数据</div>
+      <div class="action"><el-switch v-model="notEmpty" @change="(state: boolean) => prAudio.setNotEmpty(state)" /></div>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
@@ -93,6 +97,7 @@ const outputGain = ref(100)
 
 const denoise = ref(false)
 const mute = ref(true)
+const notEmpty = ref(false)
 
 let prAudio: PrAudioStream
 
