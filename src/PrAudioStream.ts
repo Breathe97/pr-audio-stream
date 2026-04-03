@@ -339,7 +339,7 @@ export class PrAudioStream {
     }
     // 计算平均音量
     const averageVolume = Math.ceil(sum / analyserArrayData.length)
-    return Math.max(0, averageVolume - 1)
+    return averageVolume
   }
 
   /**
