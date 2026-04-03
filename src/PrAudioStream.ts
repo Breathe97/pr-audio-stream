@@ -252,13 +252,17 @@ export class PrAudioStream {
   setDenoise = async (state: boolean = true) => {
     if (!this.rnnoiseWorklet) return
     this.inputGainNode.disconnect()
-    this.rnnoiseWorklet.destroy()
+    // 开启
     if (state) {
       this.rnnoiseWorkletNode = await this.rnnoiseWorklet.createRnnoiseWorkletNode(this.audioContext)
       this.inputGainNode.connect(this.rnnoiseWorkletNode)
       this.rnnoiseWorkletNode.connect(this.enhanceGainNode)
-    } else {
+    }
+    // 关闭
+    else {
       this.inputGainNode.connect(this.enhanceGainNode)
+
+      this.rnnoiseWorklet.destroy()
     }
     this.denoise = state
   }
@@ -269,14 +273,16 @@ export class PrAudioStream {
    */
   setNotEmpty = async (state: boolean = true) => {
     if (!this.notEmptyFilterWorklet) return
-    this.enhanceGainNode.disconnect()
-    this.notEmptyFilterWorklet.destroy()
+    // 开启
     if (state) {
       this.notEmptyFilterWorkletNode = await this.notEmptyFilterWorklet.createNotEmptyFilterWorkletNode(this.audioContext)
-      this.enhanceGainNode.connect(this.notEmptyFilterWorkletNode)
+      this.notEmptyFilterWorkletNode.connect(this.analyserNode)
       this.notEmptyFilterWorkletNode.connect(this.destinationNode)
-    } else {
-      this.enhanceGainNode.connect(this.destinationNode)
+    }
+    // 关闭
+    else {
+      this.notEmptyFilterWorkletNode?.disconnect()
+      this.notEmptyFilterWorklet.destroy()
     }
     this.notEmpty = state
   }
