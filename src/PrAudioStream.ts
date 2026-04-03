@@ -64,7 +64,7 @@ export class PrAudioStream {
   mute = true
 
   // 是否强制非空数据
-  notEmpty = true
+  notEmpty = false
 
   rnnoiseWorklet?: RnnoiseWorkletInstance
 
@@ -274,9 +274,9 @@ export class PrAudioStream {
     if (state) {
       this.notEmptyFilterWorkletNode = await this.notEmptyFilterWorklet.createNotEmptyFilterWorkletNode(this.audioContext)
       this.enhanceGainNode.connect(this.notEmptyFilterWorkletNode)
-      this.notEmptyFilterWorkletNode.connect(this.analyserNode)
+      this.notEmptyFilterWorkletNode.connect(this.destinationNode)
     } else {
-      this.enhanceGainNode.connect(this.analyserNode)
+      this.enhanceGainNode.connect(this.destinationNode)
     }
     this.notEmpty = state
   }
