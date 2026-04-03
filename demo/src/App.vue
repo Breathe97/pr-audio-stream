@@ -151,6 +151,8 @@ init()
 }
 
 .action-audio {
+  padding-bottom: 4px;
+  box-sizing: border-box;
   position: relative;
   width: 100%;
   height: 100%;
@@ -163,8 +165,18 @@ init()
   left: 0;
   top: 0;
   width: 100%;
-  height: 100%;
+  height: 20px;
   pointer-events: none;
+}
+.action-audio-data {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 12px;
+  pointer-events: none;
+  font-size: 10px;
+  opacity: 0.5;
 }
 
 .btn {

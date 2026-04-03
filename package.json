@@ -19,8 +19,8 @@
     "build": "tsc && vite build"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "vite": "^7.3.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
     "vite-plugin-dts": "^4.5.4"
   },
   "private": false,

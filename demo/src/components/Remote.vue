@@ -2,11 +2,11 @@
   <div class="menus">
     <div class="menus-item">
       <div class="name">音频输入</div>
-      <div class="action" style="padding: 0"><el-slider style="padding: 0 20px" v-model="inputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setInputGain(val/100)" /></div>
+      <div class="action" style="padding: 0"><el-slider style="padding: 0 20px" v-model="inputGain" :format-tooltip="(val: number) => `${val}%`" @change="(val: number) => prAudio.setInputGain(val / 100)" /></div>
     </div>
     <div class="menus-item">
       <div class="name">音频增强</div>
-      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setEnhanceGain(val/100)" :max="200" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="enhanceGain" :format-tooltip="(val: number) => `${val}%`" @change="(val: number) => prAudio.setEnhanceGain(val / 100)" :max="200" /></div>
     </div>
     <div class="menus-span"></div>
     <div class="menus-item">
@@ -18,11 +18,11 @@
     </div>
     <div class="menus-item">
       <div class="name">输入音量</div>
-      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="bgsGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setBgsGain(val/100)" :max="200" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="bgsGain" :format-tooltip="(val: number) => `${val}%`" @change="(val: number) => prAudio.setBgsGain(val / 100)" :max="200" /></div>
     </div>
     <div class="menus-item">
       <div class="name">融合</div>
-      <div class="action"><el-switch v-model="mixBgs" @change="(state:boolean)=>setMixBgs(state)" /></div>
+      <div class="action"><el-switch v-model="mixBgs" @change="(state: boolean) => setMixBgs(state)" /></div>
     </div>
     <div class="menus-span"></div>
     <div class="menus-item">
@@ -34,11 +34,11 @@
     </div>
     <div class="menus-item">
       <div class="name">输入音量</div>
-      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="bgmGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setBgmGain(val/100)" :max="200" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="bgmGain" :format-tooltip="(val: number) => `${val}%`" @change="(val: number) => prAudio.setBgmGain(val / 100)" :max="200" /></div>
     </div>
     <div class="menus-item">
       <div class="name">融合</div>
-      <div class="action"><el-switch v-model="mixBgm" @change="(state:boolean)=>setMixBgm(state)" /></div>
+      <div class="action"><el-switch v-model="mixBgm" @change="(state: boolean) => setMixBgm(state)" /></div>
     </div>
     <div class="menus-span"></div>
     <div class="menus-item">
@@ -47,20 +47,21 @@
         <div class="action-audio">
           <div>{{ gain }}</div>
           <canvas ref="audio_canvas_ref" class="action-audio-canvas"></canvas>
+          <div class="action-audio-data">{{ audioData }}</div>
         </div>
       </div>
     </div>
     <div class="menus-item">
       <div class="name">扬声器音量</div>
-      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="outputGain" :format-tooltip="(val:number)=>`${val}%`" @change="(val:number) => prAudio.setOutputGain(val/100)" /></div>
+      <div class="action" style="padding: 0"><el-slider style="width: 180px; padding: 0 20px" v-model="outputGain" :format-tooltip="(val: number) => `${val}%`" @change="(val: number) => prAudio.setOutputGain(val / 100)" /></div>
     </div>
     <div class="menus-item">
       <div class="name">降噪</div>
-      <div class="action"><el-switch v-model="denoise" @change="(denoise:boolean)=>prAudio.setDenoise(denoise)" /></div>
+      <div class="action"><el-switch v-model="denoise" @change="(denoise: boolean) => prAudio.setDenoise(denoise)" /></div>
     </div>
     <div class="menus-item">
       <div class="name">全部静音</div>
-      <div class="action"><el-switch v-model="mute" @change="(mute:boolean)=>prAudio.setMute(mute)" /></div>
+      <div class="action"><el-switch v-model="mute" @change="(mute: boolean) => prAudio.setMute(mute)" /></div>
     </div>
   </div>
 </template>
@@ -78,6 +79,7 @@ const props = defineProps({
 
 const audio_bgs_ref = ref()
 const audio_bgm_ref = ref()
+const audioData = ref('')
 
 const gain = ref(0)
 const inputGain = ref(100)
@@ -113,6 +115,7 @@ const drawSpectrum = () => {
   const draw = () => {
     const { analyserNode, analyserArrayData } = prAudio
     const dataArray = analyserArrayData
+    audioData.value = dataArray.slice(0, 8).join('-')
     // 清空画布
     const { width, height } = canvas
     ctx.clearRect(0, 0, width, height)

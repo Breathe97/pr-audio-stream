@@ -47,6 +47,7 @@
         <div class="action-audio">
           <div>{{ gain }}</div>
           <canvas ref="audio_canvas_ref" class="action-audio-canvas"></canvas>
+          <div class="action-audio-data">{{ audioData }}</div>
         </div>
       </div>
     </div>
@@ -79,6 +80,7 @@ const props = defineProps({
 
 const audio_bgs_ref = ref()
 const audio_bgm_ref = ref()
+const audioData = ref('')
 
 const gain = ref(0)
 const inputGain = ref(100)
@@ -114,6 +116,7 @@ const drawSpectrum = () => {
   const draw = () => {
     const { analyserNode, analyserArrayData } = prAudio
     const dataArray = analyserArrayData
+    audioData.value = dataArray.slice(0, 8).join('-')
     // 清空画布
     const { width, height } = canvas
     ctx.clearRect(0, 0, width, height)
