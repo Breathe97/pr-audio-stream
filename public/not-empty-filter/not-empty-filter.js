@@ -6,9 +6,9 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
   static SILENCE_EPS = 1e-15
 
   /**
-   * 静音时注入白噪声抖动峰值（约 ±0.015，在 [-1,1] 合法范围内），远端解码后样本非零且不削波。
+   * 静音时注入白噪声抖动峰值（约 ±0.001，约为原先的 1/15，正常音量下几乎听不见；样本仍非零）。
    */
-  static DITHER_PEAK = 0.015
+  static DITHER_PEAK = 0.001
 
   constructor() {
     super()
