@@ -121,7 +121,7 @@ export class PrAudioStream {
     // 创建音频分析节点
     this.analyserNode = this.audioContext.createAnalyser()
     {
-      // 设置快速傅里叶变换的大小
+      // 设置快速傅里叶变换的大小（与 public/not-empty-filter/not-empty-filter.js 内 PERIOD 保持一致）
       this.analyserNode.fftSize = 512
       // 创建一个缓冲区来存储分析节点的时域数据
       this.analyserArrayData = new Uint8Array(this.analyserNode.frequencyBinCount)

@@ -1,17 +1,23 @@
+/**
+ * 静音时：在频域仅保留 bin 0～4（随机），其余为 0，再合成时域写入输出 — 即修改真实 PCM，经 Analyser(fftSize=512) 时前 5 个 bin 有能量、其余接近 0。
+ * PERIOD 须与 PrAudioStream 中 analyserNode.fftSize 一致。
+ */
 class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
   isDestroy = false
   debug = false
 
-  /** 视为静音的幅值阈值（浮点样本） */
   static SILENCE_EPS = 1e-15
 
-  /**
-   * 静音时注入白噪声抖动峰值（约 ±0.001，约为原先的 1/15，正常音量下几乎听不见；样本仍非零）。
-   */
-  static DITHER_PEAK = 0.001
+  /** 与 src/PrAudioStream.ts 里 analyserNode.fftSize 保持一致 */
+  static PERIOD = 512
+
+  /** bin 0～4 随机复数（实部/虚部）的大致幅度尺度，可按听感/编码再调 */
+  static BIN_SCALE = 0.02
 
   constructor() {
     super()
+    this._silentPcm = new Float32Array(notEmptyFilterWorkletProcessor.PERIOD)
+    this._silentOff = notEmptyFilterWorkletProcessor.PERIOD
   }
 
   static allInputsSilent(inputs) {
@@ -31,17 +37,49 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
     return true
   }
 
-  static fillOutputsDither(outputs) {
-    const peak = notEmptyFilterWorkletProcessor.DITHER_PEAK
-    for (let no = 0; no < outputs.length; no++) {
-      const output = outputs[no]
-      if (!output) continue
-      for (let ch = 0; ch < output.length; ch++) {
-        const channel = output[ch]
-        if (!channel) continue
-        const n = channel.length
-        for (let i = 0; i < n; i++) {
-          channel[i] = (Math.random() * 2 - 1) * peak
+  /**
+   * 仅 bin 0..4 非零（随机），满足实信号 IDFT，写入 this._silentPcm
+   */
+  refillSilentPcmFromFiveBins() {
+    const N = notEmptyFilterWorkletProcessor.PERIOD
+    const scale = notEmptyFilterWorkletProcessor.BIN_SCALE
+    const re = new Float64Array(5)
+    const im = new Float64Array(5)
+    re[0] = (Math.random() * 2 - 1) * scale
+    im[0] = 0
+    for (let k = 1; k <= 4; k++) {
+      re[k] = (Math.random() * 2 - 1) * scale
+      im[k] = (Math.random() * 2 - 1) * scale
+    }
+    const invN = 1 / N
+    const twoPiOverN = (2 * Math.PI) / N
+    for (let n = 0; n < N; n++) {
+      let s = re[0]
+      for (let k = 1; k <= 4; k++) {
+        const ang = twoPiOverN * k * n
+        s += 2 * (re[k] * Math.cos(ang) - im[k] * Math.sin(ang))
+      }
+      this._silentPcm[n] = s * invN
+    }
+    this._silentOff = 0
+  }
+
+  fillOutputsSparseFiveBins(outputs) {
+    const first = outputs[0]
+    if (!first || !first[0]) return
+    const frameLen = first[0].length
+
+    for (let i = 0; i < frameLen; i++) {
+      if (this._silentOff >= notEmptyFilterWorkletProcessor.PERIOD) {
+        this.refillSilentPcmFromFiveBins()
+      }
+      const v = this._silentPcm[this._silentOff++]
+      for (let no = 0; no < outputs.length; no++) {
+        const outPorts = outputs[no]
+        if (!outPorts) continue
+        for (let ch = 0; ch < outPorts.length; ch++) {
+          const channel = outPorts[ch]
+          if (channel) channel[i] = v
         }
       }
     }
@@ -77,8 +115,9 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
     }
 
     if (notEmptyFilterWorkletProcessor.allInputsSilent(inputs)) {
-      notEmptyFilterWorkletProcessor.fillOutputsDither(outputs)
+      this.fillOutputsSparseFiveBins(outputs)
     } else {
+      this._silentOff = notEmptyFilterWorkletProcessor.PERIOD
       notEmptyFilterWorkletProcessor.copyInputsToOutputs(inputs, outputs)
     }
 
