@@ -268,13 +268,11 @@ export class PrAudioStream {
    * @param state 是否开启
    */
   setNotEmpty = async (state: boolean = true) => {
-    if (!this.notEmptyFilterWorkletNode) return
+    if (!this.notEmptyFilterWorklet) return
     this.enhanceGainNode.disconnect()
     this.notEmptyFilterWorklet.destroy()
     if (state) {
-      if (this.notEmpty === true) {
-        this.notEmptyFilterWorkletNode = await this.notEmptyFilterWorklet.createNotEmptyFilterWorkletNode(this.audioContext)
-      }
+      this.notEmptyFilterWorkletNode = await this.notEmptyFilterWorklet.createNotEmptyFilterWorkletNode(this.audioContext)
       this.enhanceGainNode.connect(this.notEmptyFilterWorkletNode)
       this.notEmptyFilterWorkletNode.connect(this.analyserNode)
     } else {
