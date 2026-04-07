@@ -1,5 +1,5 @@
 {
-  "name": "pr-audio-stream",
+  "name": "pr-audio-stream-demo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "element-plus": "^2.13.6",
+    "pr-audio-stream": "^0.2.11",
+    "pr-audio-stream-local": "file:..",
     "pr-rnnoise": "^0.1.0",
     "pr-tools": "^1.7.2",
     "vue": "^3.5.32",
