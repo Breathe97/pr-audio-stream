@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
-import { PrAudioStream } from '../../../src/index'
+// import { PrAudioStream } from '../../../src/index'
 import { prRnnoise } from 'pr-rnnoise'
 
 const props = defineProps({

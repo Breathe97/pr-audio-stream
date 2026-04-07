@@ -1,1 +1,1 @@
-export * from './PrAudioStream'
+export { PrAudioStream } from './PrAudioStream'
