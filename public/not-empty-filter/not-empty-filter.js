@@ -18,6 +18,12 @@ class NotEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
     super()
     this._silentPcm = new Float32Array(NotEmptyFilterWorkletProcessor.PERIOD)
     this._silentOff = NotEmptyFilterWorkletProcessor.PERIOD
+    this.port.onmessage = event => {
+      const message = event && event.data
+      if (message && message.type === 'destroy') {
+        this.destroy()
+      }
+    }
   }
 
   static allInputsSilent(inputs) {
@@ -126,6 +132,9 @@ class NotEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
 
   destroy() {
     this.isDestroy = true
+    try {
+      this.port.close()
+    } catch {}
   }
 }
 
