@@ -268,7 +268,7 @@ export class PrAudioStream {
   }
 
   /**
-   * 非空填充
+   * 静音保活
    * @param state 是否开启
    */
   setNotEmpty = async (state: boolean = true) => {
