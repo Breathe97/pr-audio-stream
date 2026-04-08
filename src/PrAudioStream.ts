@@ -26,6 +26,7 @@ export class PrAudioStream {
 
   // 音频上下文实例
   audioContext = new AudioContext()
+  private isExternalAudioContext = false
 
   // 输入节点（处理器的音频）
   sourceNode: MediaStreamAudioSourceNode
@@ -85,6 +86,7 @@ export class PrAudioStream {
 
     if (audioContext) {
       this.audioContext = audioContext
+      this.isExternalAudioContext = true
     }
 
     // 创建音源节点
@@ -390,6 +392,52 @@ export class PrAudioStream {
       node.connect(this.destinationNode) // 开启融合
     } else {
       node.disconnect(this.destinationNode) // 取消融合
+    }
+  }
+
+  /**
+   * 完全销毁所有资源
+   */
+  destroy = async () => {
+    // 停止融合音频并释放播放节点
+    for (const source of this.mixAudioMap.values()) {
+      source.stop()
+      source.disconnect()
+    }
+    this.mixAudioMap.clear()
+
+    // 销毁 worklet 节点
+    this.notEmptyFilterWorklet.destroy()
+    this.rnnoiseWorklet?.destroy()
+    this.notEmptyFilterWorkletNode = undefined
+    this.rnnoiseWorkletNode = undefined
+
+    // 断开音频图节点连接（容错处理，避免重复销毁时报错）
+    this.sourceNode.disconnect()
+    this.inputGainNode.disconnect()
+    this.enhanceGainNode.disconnect()
+    this.bgsGainNode.disconnect()
+    this.bgmGainNode.disconnect()
+    this.analyserNode.disconnect()
+    this.outputGainNode.disconnect()
+
+    // 清空输入输出流轨道
+    for (const track of this.inputStream.getTracks()) {
+      track.stop()
+      this.inputStream.removeTrack(track)
+    }
+    for (const track of this.outputStream.getTracks()) {
+      track.stop()
+      this.outputStream.removeTrack(track)
+    }
+
+    this.notEmpty = false
+    this.denoise = false
+    this.mute = true
+
+    // 外部传入的 AudioContext 不由当前实例关闭
+    if (!this.isExternalAudioContext && this.audioContext.state !== 'closed') {
+      await this.audioContext.close()
     }
   }
 }
