@@ -2,7 +2,7 @@
  * 静音时：在频域仅保留 bin 0～4（随机），其余为 0，再合成时域写入输出 — 即修改真实 PCM，经 Analyser(fftSize=512) 时前 5 个 bin 有能量、其余接近 0。
  * PERIOD 须与 PrAudioStream 中 analyserNode.fftSize 一致。
  */
-class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
+class NotEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
   isDestroy = false
   debug = false
 
@@ -16,12 +16,12 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
 
   constructor() {
     super()
-    this._silentPcm = new Float32Array(notEmptyFilterWorkletProcessor.PERIOD)
-    this._silentOff = notEmptyFilterWorkletProcessor.PERIOD
+    this._silentPcm = new Float32Array(NotEmptyFilterWorkletProcessor.PERIOD)
+    this._silentOff = NotEmptyFilterWorkletProcessor.PERIOD
   }
 
   static allInputsSilent(inputs) {
-    const eps = notEmptyFilterWorkletProcessor.SILENCE_EPS
+    const eps = NotEmptyFilterWorkletProcessor.SILENCE_EPS
     for (let ni = 0; ni < inputs.length; ni++) {
       const input = inputs[ni]
       if (!input) continue
@@ -41,8 +41,8 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
    * 仅 bin 0..4 非零（随机），满足实信号 IDFT，写入 this._silentPcm
    */
   refillSilentPcmFromFiveBins() {
-    const N = notEmptyFilterWorkletProcessor.PERIOD
-    const scale = notEmptyFilterWorkletProcessor.BIN_SCALE
+    const N = NotEmptyFilterWorkletProcessor.PERIOD
+    const scale = NotEmptyFilterWorkletProcessor.BIN_SCALE
     const re = new Float64Array(5)
     const im = new Float64Array(5)
     re[0] = (Math.random() * 2 - 1) * scale
@@ -70,7 +70,7 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
     const frameLen = first[0].length
 
     for (let i = 0; i < frameLen; i++) {
-      if (this._silentOff >= notEmptyFilterWorkletProcessor.PERIOD) {
+      if (this._silentOff >= NotEmptyFilterWorkletProcessor.PERIOD) {
         this.refillSilentPcmFromFiveBins()
       }
       const v = this._silentPcm[this._silentOff++]
@@ -114,11 +114,11 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
       console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', '------->Breathe: inputs', inputs)
     }
 
-    if (notEmptyFilterWorkletProcessor.allInputsSilent(inputs)) {
+    if (NotEmptyFilterWorkletProcessor.allInputsSilent(inputs)) {
       this.fillOutputsSparseFiveBins(outputs)
     } else {
-      this._silentOff = notEmptyFilterWorkletProcessor.PERIOD
-      notEmptyFilterWorkletProcessor.copyInputsToOutputs(inputs, outputs)
+      this._silentOff = NotEmptyFilterWorkletProcessor.PERIOD
+      NotEmptyFilterWorkletProcessor.copyInputsToOutputs(inputs, outputs)
     }
 
     return true
@@ -129,4 +129,4 @@ class notEmptyFilterWorkletProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('not-empty-filter-processor', notEmptyFilterWorkletProcessor)
+registerProcessor('not-empty-filter-processor', NotEmptyFilterWorkletProcessor)
