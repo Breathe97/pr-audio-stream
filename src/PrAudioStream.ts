@@ -26,7 +26,6 @@ export class PrAudioStream {
 
   // 音频上下文实例
   audioContext = new AudioContext()
-  private isExternalAudioContext = false
 
   // 输入节点（处理器的音频）
   sourceNode: MediaStreamAudioSourceNode
@@ -81,13 +80,8 @@ export class PrAudioStream {
     return new_stream
   }
 
-  constructor(stream: MediaStream, audioContext?: AudioContext) {
+  constructor(stream: MediaStream) {
     this.inputStream = stream
-
-    if (audioContext) {
-      this.audioContext = audioContext
-      this.isExternalAudioContext = true
-    }
 
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
@@ -435,9 +429,6 @@ export class PrAudioStream {
     this.denoise = false
     this.mute = true
 
-    // 外部传入的 AudioContext 不由当前实例关闭
-    if (!this.isExternalAudioContext && this.audioContext.state !== 'closed') {
-      await this.audioContext.close()
-    }
+    await this.audioContext.close()
   }
 }

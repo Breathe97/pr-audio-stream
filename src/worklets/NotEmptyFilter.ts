@@ -2,7 +2,7 @@ import notEmptyFilterWorkletProcessorUrl from '../../public/not-empty-filter/not
 
 export class NotEmptyFilterWorklet {
   // 音频上下文实例
-  audioContext = new AudioContext()
+  audioContext!: AudioContext
 
   notEmptyFilterWorkletNode?: AudioWorkletNode
 
