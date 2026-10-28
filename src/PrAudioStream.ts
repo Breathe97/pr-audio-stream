@@ -1,12 +1,12 @@
 import { NotEmptyFilterWorklet } from './worklets/NotEmptyFilter'
 
 interface RnnoiseWorkletInstance {
-  createRnnoiseWorkletNode: (audioContext: AudioContext) => Promise<AudioWorkletNode>
+  createRnnoiseWorkletNode: () => Promise<AudioWorkletNode>
   destroy: () => void
 }
 
 interface PrRnnoise {
-  RnnoiseWorklet: new () => RnnoiseWorkletInstance
+  RnnoiseWorklet: new (audioContext: AudioContext) => RnnoiseWorkletInstance
 }
 
 export class PrAudioStream {
@@ -172,7 +172,7 @@ export class PrAudioStream {
    * 使用插件
    */
   use = ({ rnnoise }: { rnnoise: PrRnnoise }) => {
-    this.rnnoiseWorklet = new rnnoise.RnnoiseWorklet()
+    this.rnnoiseWorklet = new rnnoise.RnnoiseWorklet(this.audioContext)
   }
 
   private _changeSource = () => {
@@ -264,7 +264,7 @@ export class PrAudioStream {
     if (state) {
       // 先清掉上一次注册的节点，避免重复开启导致链路泄漏
       this._destroyRnnoiseNode()
-      this.rnnoiseWorkletNode = await this.rnnoiseWorklet.createRnnoiseWorkletNode(this.audioContext)
+      this.rnnoiseWorkletNode = await this.rnnoiseWorklet.createRnnoiseWorkletNode()
       this.inputGainNode.connect(this.rnnoiseWorkletNode)
       this.rnnoiseWorkletNode.connect(this.enhanceGainNode)
     }

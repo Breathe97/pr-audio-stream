@@ -9,18 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "element-plus": "^2.13.6",
-    "pr-audio-stream": "^0.2.11",
-    "pr-audio-stream-local": "file:..",
-    "pr-rnnoise": "^0.1.0",
+    "element-plus": "^2.14.7",
+    "pr-rnnoise": "^0.2.0",
     "pr-tools": "^1.7.5",
     "vue": "^3.5.32",
-    "wavesurfer.js": "^7.12.5"
+    "wavesurfer.js": "^8.0.3"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.5",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.7",
-    "vue-tsc": "^3.2.6"
+    "@vitejs/plugin-vue": "^6.0.10",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5",
+    "vue-tsc": "^3.3.13"
   }
 }
