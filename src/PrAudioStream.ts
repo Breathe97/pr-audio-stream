@@ -10,7 +10,7 @@ interface PrRnnoise {
 }
 
 export class PrAudioStream {
-  inputStream = new MediaStream() // 输入音频流 （原始音频）
+  inputStream = new MediaStream() // 输入音频流 （内部自建，仅持有外部传入的音频轨道）
 
   outputStream = new MediaStream() // 输出音频流 （处理后音频）
 
@@ -24,8 +24,8 @@ export class PrAudioStream {
 
   mixAudioMap = new Map<string, AudioBufferSourceNode>()
 
-  // 音频上下文实例
-  audioContext = new AudioContext()
+  // 音频上下文实例（完全由外部传入，本类不创建也不关闭）
+  audioContext: AudioContext
 
   // 输入节点（处理器的音频）
   sourceNode: MediaStreamAudioSourceNode
@@ -80,8 +80,13 @@ export class PrAudioStream {
     return new_stream
   }
 
-  constructor(stream: MediaStream) {
-    this.inputStream = stream
+  constructor(audioContext: AudioContext, stream: MediaStream) {
+    this.audioContext = audioContext
+
+    // 输入流内部自建，只把外部音频轨道挂进来，后续增删轨道不会污染外部 stream 对象
+    for (const track of stream.getAudioTracks()) {
+      this.inputStream.addTrack(track)
+    }
 
     // 创建音源节点
     this.sourceNode = this.audioContext.createMediaStreamSource(this.inputStream)
@@ -160,8 +165,7 @@ export class PrAudioStream {
 
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
     }
-
-    this.audioContext.resume() // 尝试恢复暂停状态
+    void this.audioContext.resume().catch(() => {}) // 尝试恢复暂停状态
   }
 
   /**
@@ -242,6 +246,14 @@ export class PrAudioStream {
   }
 
   /**
+   * 断开并清空当前注册的降噪节点（不销毁外部 worklet 实例，实例留给 destroy 统一销毁）
+   */
+  private _destroyRnnoiseNode = () => {
+    this.rnnoiseWorkletNode?.disconnect()
+    this.rnnoiseWorkletNode = undefined
+  }
+
+  /**
    * 降噪
    * @param state 是否开启
    */
@@ -250,6 +262,8 @@ export class PrAudioStream {
     this.inputGainNode.disconnect()
     // 开启
     if (state) {
+      // 先清掉上一次注册的节点，避免重复开启导致链路泄漏
+      this._destroyRnnoiseNode()
       this.rnnoiseWorkletNode = await this.rnnoiseWorklet.createRnnoiseWorkletNode(this.audioContext)
       this.inputGainNode.connect(this.rnnoiseWorkletNode)
       this.rnnoiseWorkletNode.connect(this.enhanceGainNode)
@@ -257,8 +271,7 @@ export class PrAudioStream {
     // 关闭
     else {
       this.inputGainNode.connect(this.enhanceGainNode)
-
-      this.rnnoiseWorklet.destroy()
+      this._destroyRnnoiseNode()
     }
     this.denoise = state
   }
@@ -400,13 +413,13 @@ export class PrAudioStream {
     }
     this.mixAudioMap.clear()
 
-    // 销毁 worklet 节点
+    // 销毁当前注册的 worklet 节点与 worklet 实例
     this.notEmptyFilterWorklet.destroy()
     this.rnnoiseWorklet?.destroy()
     this.notEmptyFilterWorkletNode = undefined
     this.rnnoiseWorkletNode = undefined
 
-    // 断开音频图节点连接（容错处理，避免重复销毁时报错）
+    // 断开本类创建的所有节点连接（容错处理，避免重复销毁时报错）
     this.sourceNode.disconnect()
     this.inputGainNode.disconnect()
     this.enhanceGainNode.disconnect()
@@ -414,12 +427,9 @@ export class PrAudioStream {
     this.bgmGainNode.disconnect()
     this.analyserNode.disconnect()
     this.outputGainNode.disconnect()
+    this.destinationNode.disconnect()
 
-    // 清空输入输出流轨道
-    for (const track of this.inputStream.getTracks()) {
-      track.stop()
-      this.inputStream.removeTrack(track)
-    }
+    // 只清理本类创建的输出流轨道；输入流（麦克风）由外部管理，这里不停止也不摘轨道
     for (const track of this.outputStream.getTracks()) {
       track.stop()
       this.outputStream.removeTrack(track)
@@ -428,7 +438,5 @@ export class PrAudioStream {
     this.notEmpty = false
     this.denoise = false
     this.mute = true
-
-    await this.audioContext.close()
   }
 }

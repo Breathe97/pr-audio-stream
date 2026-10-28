@@ -102,6 +102,9 @@ const notEmpty = ref(false)
 
 let prAudio: PrAudioStream
 
+// 音频上下文由外部创建并持管，PrAudioStream 只使用不创建
+let audioContext: AudioContext
+
 let wavesurfer_bgs: WaveSurfer
 let wavesurfer_bgm: WaveSurfer
 
@@ -158,7 +161,11 @@ const drawSpectrum = () => {
 
 const init = async () => {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 }, video: false })
-  prAudio = new PrAudioStream(stream)
+
+  // 外部创建 AudioContext 后传入，采样率与采集保持一致
+  audioContext = new AudioContext({ sampleRate: 48000 })
+
+  prAudio = new PrAudioStream(audioContext, stream)
 
   prAudio.use({ rnnoise: prRnnoise })
 

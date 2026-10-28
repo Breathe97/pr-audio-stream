@@ -95,6 +95,9 @@ const mute = ref(false)
 
 let prAudio: PrAudioStream
 
+// 音频上下文由外部创建并持管，远端流共用同一个
+let audioContext: AudioContext
+
 let wavesurfer_bgs: WaveSurfer
 let wavesurfer_bgm: WaveSurfer
 
@@ -150,6 +153,9 @@ const drawSpectrum = () => {
 }
 
 const init = async () => {
+  // 外部创建 AudioContext 后传入，所有远端轨道共用
+  audioContext = new AudioContext({ sampleRate: 48000 })
+
   // 监听远端轨道
   const ontrack = async (e: any) => {
     const { track } = e
@@ -160,7 +166,7 @@ const init = async () => {
     const audio = new Audio()
     audio.srcObject = stream
 
-    prAudio = new PrAudioStream(stream)
+    prAudio = new PrAudioStream(audioContext, stream)
     prAudio.setMute(false) // 取消静音
 
     const func = () => {

@@ -34,8 +34,11 @@ const stream = await navigator.mediaDevices.getUserMedia({
   video: false
 })
 
+// 创建音频上下文（由外部创建并持管，本库不创建也不关闭）
+const audioContext = new AudioContext({ sampleRate: 48000 })
+
 // 创建音频流处理器
-const prAudio = new PrAudioStream(stream)
+const prAudio = new PrAudioStream(audioContext, stream)
 
 // 获取处理后的音频流（可用于 WebRTC 发送）
 const outputStream = prAudio.getStream()
@@ -46,10 +49,13 @@ const outputStream = prAudio.getStream()
 ### 构造函数
 
 ```ts
-new PrAudioStream(stream: MediaStream)
+new PrAudioStream(audioContext: AudioContext, stream: MediaStream)
 ```
 
 创建一个新的音频流处理器实例，自动构建完整的音频图（AudioGraph）。
+
+- `audioContext` 由调用方创建并管理生命周期，本库只使用、不创建、`destroy()` 时也不会关闭它。
+- 传入的 `stream` 不会被修改，内部会自建 `MediaStream` 持有其音频轨道。
 
 **音频图拓扑：**
 
@@ -85,7 +91,7 @@ bgmGainNode ──────────────────────�
 | `getStream()` | 获取处理后的输出流 |
 | `getVolume()` | 获取当前音量值（0~255） |
 | `stop()` | 停止音频采集 |
-| `destroy()` | 完全销毁所有资源，关闭 AudioContext |
+| `destroy()` | 销毁本类注册的节点与输出流（不关闭外部传入的 AudioContext） |
 | `use({ rnnoise })` | 注入降噪插件 |
 
 ### 音频融合
@@ -129,7 +135,7 @@ npm i pr-rnnoise
 import { PrAudioStream } from 'pr-audio-stream'
 import { prRnnoise } from 'pr-rnnoise'
 
-const prAudio = new PrAudioStream(stream)
+const prAudio = new PrAudioStream(new AudioContext({ sampleRate: 48000 }), stream)
 prAudio.use({ rnnoise: prRnnoise })
 
 // 开启降噪
@@ -158,7 +164,7 @@ await prAudio.setNotEmpty(false)
 const pc = new RTCPeerConnection()
 
 // 发送端 - 将处理后的音频流通过 WebRTC 发送
-const prAudio = new PrAudioStream(micStream)
+const prAudio = new PrAudioStream(new AudioContext({ sampleRate: 48000 }), micStream)
 const outputStream = prAudio.getStream()
 const [track] = outputStream.getAudioTracks()
 pc.addTransceiver(track, { direction: 'sendonly' })
@@ -167,7 +173,7 @@ pc.addTransceiver(track, { direction: 'sendonly' })
 pc.addEventListener('track', (e) => {
   const stream = new MediaStream()
   stream.addTrack(e.track)
-  const prAudio = new PrAudioStream(stream)
+  const prAudio = new PrAudioStream(new AudioContext({ sampleRate: 48000 }), stream)
   prAudio.setMute(false) // 取消静音以监听
 })
 ```
