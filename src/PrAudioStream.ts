@@ -307,7 +307,7 @@ export class PrAudioStream {
   /**
    * 设置麦克风增强音量
    */
-  setEnhanceGain = async (gain: number) => {
+  setEnhanceGain = (gain: number) => {
     this.enhanceGain = gain + 1
     this.enhanceGainNode.gain.setValueAtTime(this.enhanceGain, this.audioContext.currentTime)
   }
