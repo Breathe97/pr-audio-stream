@@ -64,25 +64,16 @@
       <div class="action"><el-switch v-model="mute" @change="(mute: boolean) => setMute(mute)" /></div>
     </div>
     <div class="menus-item">
-      <div class="name">填充数据</div>
+      <div class="name">静音保活</div>
       <div class="action"><el-switch v-model="notEmpty" @change="(state: boolean) => setNotEmpty(state)" /></div>
     </div>
-    <!-- <div class="menus-item">
-      <div class="name">线路测试</div>
-      <div class="action" style="gap: 8px">
-        <el-input-number class="line-count" v-model="lineCount" :min="1" :max="1000" :controls="false" :disabled="lineTesting" size="small" style="width: 90px" />
-        <div class="btn" :style="{ opacity: lineTesting ? 0.3 : 1, pointerEvents: lineTesting ? 'none' : 'auto' }" @click="startLines">{{ '开始' }}</div>
-        <div class="btn" :style="{ opacity: lineTesting ? 1 : 0.3, pointerEvents: lineTesting ? 'auto' : 'none' }" @click="stopLines">{{ '结束' }}</div>
-      </div>
-    </div> -->
   </div>
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import { PrAudioStream } from '../../../src/index'
-import { prRnnoise } from 'pr-rnnoise'
-import { createMutedAudioStream } from 'pr-tools'
+import { prDenoise } from 'pr-denoise'
 
 const props = defineProps({
   pc: {
@@ -105,6 +96,7 @@ const bgmGain = ref(100)
 const outputGain = ref(100)
 
 const denoise = ref(false)
+
 const mute = ref(true)
 const notEmpty = ref(false)
 
@@ -171,11 +163,11 @@ const init = async () => {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 }, video: false })
 
   // 外部创建 AudioContext 后传入，采样率与采集保持一致
-  audioContext = new AudioContext()
+  audioContext = new AudioContext({ sampleRate: 48000 })
 
   prAudio = new PrAudioStream(audioContext, stream)
 
-  prAudio.use({ rnnoise: prRnnoise })
+  prAudio.use({ denoise: prDenoise })
 
   // 将流添加至发射器中
   const new_stream = prAudio.getStream()
@@ -196,7 +188,7 @@ const init = async () => {
   wavesurfer_bgm.setMuted(true)
 }
 
-defineExpose({ init })
+defineExpose({ init, getPrAudio: () => prAudio })
 
 // 添加音效
 const mixBgs = ref(true)
@@ -262,63 +254,6 @@ const setOutputGain = (val: number) => prAudio.setOutputGain(val / 100)
 const setDenoise = (state: boolean) => prAudio.setDenoise(state)
 const setMute = (state: boolean) => prAudio.setMute(state)
 const setNotEmpty = (state: boolean) => prAudio.setNotEmpty(state)
-
-// 线路测试：保存所有假音频线路，避免实例被回收，方便后续统一清理
-interface FakeLine {
-  prAudio: PrAudioStream
-  destroyStream: () => void
-}
-
-const lineCount = ref(100)
-const fakeLines: FakeLine[] = []
-// 线路测试进行中：锁定输入框，只允许点结束
-const lineTesting = ref(false)
-
-// 开始线路测试：每条线路用 pr-tools 生成假音频流，复用同一个 audioContext
-const startLines = () => {
-  if (!audioContext) {
-    console.warn('请先初始化麦克风，线路测试需要复用同一个 AudioContext')
-    return
-  }
-  lineTesting.value = true
-  for (let index = 0; index < lineCount.value; index++) {
-    const { stream, destroy } = createMutedAudioStream(audioContext)
-    const fakeAudio = new PrAudioStream(audioContext, stream)
-    const [track] = fakeAudio.getStream().getAudioTracks()
-    props.pc.addTransceiver(track, { direction: 'sendonly' })
-    fakeLines.push({ prAudio: fakeAudio, destroyStream: destroy })
-  }
-}
-
-// 结束线路测试：停掉 pc 上的假线路并销毁所有资源
-const stopLines = async () => {
-  for (const line of fakeLines) {
-    // 先按轨道匹配并停掉对应 transceiver，避免误伤麦克风线路
-    const [track] = line.prAudio.getStream().getAudioTracks()
-    for (const transceiver of props.pc.getTransceivers()) {
-      if (transceiver.sender.track === track) {
-        transceiver.stop()
-      }
-    }
-    // 先销毁 PrAudioStream 内部节点，再释放 pr-tools 的振荡器资源
-    await line.prAudio.destroy()
-    line.destroyStream()
-  }
-  fakeLines.length = 0
-  lineTesting.value = false
-}
 </script>
 
-<style scoped>
-/* 线路测试输入框：覆写 element-plus 默认变量，跟深色菜单配色保持一致 */
-.line-count {
-  --el-input-bg-color: #333333;
-  --el-input-text-color: #ffffff;
-  --el-input-border-color: rgba(255, 255, 255, 0.1);
-  --el-input-hover-border-color: rgba(255, 255, 255, 0.25);
-  --el-input-focus-border-color: #0097ff;
-  --el-disabled-bg-color: #2a2a2a;
-  --el-disabled-text-color: rgba(255, 255, 255, 0.4);
-  --el-disabled-border-color: rgba(255, 255, 255, 0.08);
-}
-</style>
+<style scoped></style>

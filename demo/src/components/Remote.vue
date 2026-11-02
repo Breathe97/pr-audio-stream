@@ -63,12 +63,17 @@
       <div class="name">全部静音</div>
       <div class="action"><el-switch v-model="mute" @change="(mute: boolean) => setMute(mute)" /></div>
     </div>
+    <div class="menus-item">
+      <div class="name">静音保活</div>
+      <div class="action"><el-switch v-model="notEmpty" @change="(state: boolean) => setNotEmpty(state)" /></div>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import { PrAudioStream } from '../../../src/index'
+import { prDenoise } from 'pr-denoise'
 
 const props = defineProps({
   pc: {
@@ -92,6 +97,7 @@ const outputGain = ref(100)
 
 const denoise = ref(false)
 const mute = ref(false)
+const notEmpty = ref(false)
 
 let prAudio: PrAudioStream
 
@@ -169,6 +175,8 @@ const init = async () => {
     prAudio = new PrAudioStream(audioContext, stream)
     prAudio.setMute(false) // 取消静音
 
+    prAudio.use({ denoise: prDenoise })
+
     const func = () => {
       gain.value = prAudio.getVolume()
       drawSpectrum()
@@ -182,7 +190,7 @@ const init = async () => {
   wavesurfer_bgm = WaveSurfer.create({ container: audio_bgm_ref.value, waveColor: '#0097ff', progressColor: '#666666', height: 32 })
 }
 
-defineExpose({ init })
+defineExpose({ init, getPrAudio: () => prAudio })
 
 // 添加音效
 const mixBgs = ref(true)
@@ -249,4 +257,5 @@ const setBgmGain = (val: number) => prAudio.setBgmGain(val / 100)
 const setOutputGain = (val: number) => prAudio.setOutputGain(val / 100)
 const setDenoise = (state: boolean) => prAudio.setDenoise(state)
 const setMute = (state: boolean) => prAudio.setMute(state)
+const setNotEmpty = (state: boolean) => prAudio.setNotEmpty(state)
 </script>

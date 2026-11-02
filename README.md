@@ -11,7 +11,7 @@
 
 - **音量控制** — 麦克风输入、增强、音效(BGS)、背景音乐(BGM)、扬声器输出，五路独立音量控制
 - **音频融合** — 支持即时音效(BGS)和背景音乐(BGM)与麦克风输入混合
-- **噪音抑制** — 集成 [pr-rnnoise](https://www.npmjs.com/package/pr-rnnoise) 实现实时降噪
+- **噪音抑制** — 集成 [pr-denoise](https://www.npmjs.com/package/pr-denoise)（GTCRN 引擎）实现实时降噪
 - **静音保活** — 静音时自动填充非空音频数据，确保音频流持续活跃（WebRTC 场景下避免轨道休眠）
 - **音频分析** — 内置频谱分析器，实时获取音量/频域数据
 - **频谱可视化** — 通过 AnalyserNode 支持自定义频谱绘制
@@ -83,7 +83,8 @@ bgmGainNode ──────────────────────�
 
 | 方法 | 说明 |
 |------|------|
-| `setDenoise(state)` | 开启/关闭实时降噪（需先调用 `use()` 注入 `pr-rnnoise`） |
+| `setDenoise(state)` | 开启/关闭实时降噪（需先调用 `use()` 注入降噪引擎） |
+| `setDenoiseGain(value)` | 设置降噪后的响度补偿：`'auto'` 自动跟随，或 `1~3` 固定倍数（1 = 不补偿） |
 | `setMute(state)` | 静音/取消静音（控制本地扬声器输出） |
 | `setNotEmpty(state)` | 开启/关闭静音保活（静音时填充非空音频数据） |
 | `replaceTrack(track)` | 替换麦克风轨道 |
@@ -92,7 +93,7 @@ bgmGainNode ──────────────────────�
 | `getVolume()` | 获取当前音量值（0~255） |
 | `stop()` | 停止音频采集 |
 | `destroy()` | 销毁本类注册的节点与输出流（不关闭外部传入的 AudioContext） |
-| `use({ rnnoise })` | 注入降噪插件 |
+| `use({ denoise })` | 注入降噪插件（GTCRN 引擎） |
 
 ### 音频融合
 
@@ -125,21 +126,24 @@ analyserNode.getByteFrequencyData(analyserArrayData)
 
 ## 降噪功能
 
-需要额外安装 [pr-rnnoise](https://www.npmjs.com/package/pr-rnnoise) 包：
+需要额外安装 [pr-denoise](https://www.npmjs.com/package/pr-denoise) 包：
 
 ```bash
-npm i pr-rnnoise
+npm i pr-denoise
 ```
 
 ```ts
 import { PrAudioStream } from 'pr-audio-stream'
-import { prRnnoise } from 'pr-rnnoise'
+import { prDenoise } from 'pr-denoise'
 
 const prAudio = new PrAudioStream(new AudioContext({ sampleRate: 48000 }), stream)
-prAudio.use({ rnnoise: prRnnoise })
+prAudio.use({ denoise: prDenoise })
 
 // 开启降噪
 await prAudio.setDenoise(true)
+
+// 响度补偿：'auto' 自动跟随降噪前后能量比，或 1~3 固定倍数（1 = 不补偿）
+prAudio.setDenoiseGain('auto')
 
 // 关闭降噪
 await prAudio.setDenoise(false)
