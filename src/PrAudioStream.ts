@@ -36,20 +36,6 @@ export class PrAudioStream {
   // 音量输入增强节点 (麦克风增强)
   enhanceGainNode: GainNode
 
-  // 降噪后响度补偿节点（GTCRN 输出电平偏低，用来补回人声音量）
-  denoiseGainNode: GainNode
-
-  // 降噪响度补偿：'auto' 自动跟随降噪前后能量比，或 1~3 的固定倍数（1 = 100%，即不补偿）
-  denoiseGain: 'auto' | number = 'auto'
-  private autoGainCurrent = 2
-  private denoiseAutoGainTimer?: number
-
-  // 降噪前 / 后能量分析节点（自动补偿用，只做分支探测，不接入输出）
-  denoiseInAnalyser: AnalyserNode
-  denoiseOutAnalyser: AnalyserNode
-  private denoiseInBuf: Float32Array<ArrayBuffer>
-  private denoiseOutBuf: Float32Array<ArrayBuffer>
-
   // 音效控制节点 (音效音量)
   bgsGainNode: GainNode
 
@@ -115,22 +101,6 @@ export class PrAudioStream {
       // 设置音量为1
       this.enhanceGainNode.gain.setValueAtTime(this.enhanceGain, this.audioContext.currentTime)
     }
-
-    // 创建降噪响度补偿节点
-    this.denoiseGainNode = this.audioContext.createGain()
-    {
-      // 固定倍数模式才需要初始化，auto 模式由自动算法接管
-      const initGain = typeof this.denoiseGain === 'number' ? this.denoiseGain : 1
-      this.denoiseGainNode.gain.setValueAtTime(initGain, this.audioContext.currentTime)
-    }
-
-    // 创建降噪前 / 后能量分析节点（分支探测，不接入输出链路）
-    this.denoiseInAnalyser = this.audioContext.createAnalyser()
-    this.denoiseInAnalyser.fftSize = 1024
-    this.denoiseOutAnalyser = this.audioContext.createAnalyser()
-    this.denoiseOutAnalyser.fftSize = 1024
-    this.denoiseInBuf = new Float32Array(this.denoiseInAnalyser.fftSize)
-    this.denoiseOutBuf = new Float32Array(this.denoiseOutAnalyser.fftSize)
 
     // 创建音效输入控制节点
     this.bgsGainNode = this.audioContext.createGain()
@@ -294,90 +264,15 @@ export class PrAudioStream {
       this._destroyDenoiseNode()
       this.denoiseWorkletNode = await this.denoiseWorklet.createDenoiseWorkletNode()
       this.inputGainNode.connect(this.denoiseWorkletNode)
-      // 降噪输出先过响度补偿，再接麦克风增强
-      this.denoiseWorkletNode.connect(this.denoiseGainNode)
-      this.denoiseGainNode.connect(this.enhanceGainNode)
-      // 自动补偿的两路能量探测
-      this.inputGainNode.connect(this.denoiseInAnalyser)
-      this.denoiseWorkletNode.connect(this.denoiseOutAnalyser)
-      if (this.denoiseGain === 'auto') this._startAutoGain()
+      // 降噪输出直接接麦克风增强
+      this.denoiseWorkletNode.connect(this.enhanceGainNode)
     }
     // 关闭
     else {
       this.inputGainNode.connect(this.enhanceGainNode)
-      // 断开补偿与探测链路，避免残留连接
-      this.denoiseGainNode.disconnect()
-      this.denoiseInAnalyser.disconnect()
-      this.denoiseOutAnalyser.disconnect()
-      this._stopAutoGain()
       this._destroyDenoiseNode()
     }
     this.denoise = state
-  }
-
-  /**
-   * 设置降噪后的响度补偿
-   * @param value 'auto' 自动跟随降噪前后能量比；1~3 为固定倍数（1 = 100% 即不补偿，3 = 300%）
-   */
-  setDenoiseGain = (value: 'auto' | number) => {
-    // 固定倍数夹在 1~3，避免调用方传离谱值
-    const next: 'auto' | number = typeof value === 'number' ? Math.min(3, Math.max(1, value)) : 'auto'
-    this.denoiseGain = next
-
-    if (next === 'auto') {
-      // 降噪开着才启动轮询，没开就等 setDenoise 时再启
-      if (this.denoise) this._startAutoGain()
-      return
-    }
-
-    this._stopAutoGain()
-    this.denoiseGainNode.gain.setValueAtTime(next, this.audioContext.currentTime)
-  }
-
-  private _startAutoGain = () => {
-    this._stopAutoGain()
-    // 以固定值或默认 200% 作为收敛起点，避免一开始音量跳变
-    this.autoGainCurrent = typeof this.denoiseGain === 'number' ? this.denoiseGain : 2
-    // 先落到起点值，别等第一次轮询（100ms）才把音量拉起来
-    this.denoiseGainNode.gain.setValueAtTime(this.autoGainCurrent, this.audioContext.currentTime)
-    this.denoiseAutoGainTimer = window.setInterval(this._updateAutoGain, 100)
-  }
-
-  private _stopAutoGain = () => {
-    if (this.denoiseAutoGainTimer !== undefined) {
-      window.clearInterval(this.denoiseAutoGainTimer)
-      this.denoiseAutoGainTimer = undefined
-    }
-  }
-
-  /**
-   * 按降噪前后 RMS 比值平滑调整补偿倍数
-   * 只在有明显语音能量时更新，避免静音段把噪声一起抬起来
-   */
-  private _updateAutoGain = () => {
-    if (!this.denoise || !this.denoiseWorkletNode) return
-
-    this.denoiseInAnalyser.getFloatTimeDomainData(this.denoiseInBuf)
-    this.denoiseOutAnalyser.getFloatTimeDomainData(this.denoiseOutBuf)
-    const inRms = this._rms(this.denoiseInBuf)
-    const outRms = this._rms(this.denoiseOutBuf)
-
-    // 输入太小说明没人说话，保持不动
-    if (inRms < 0.005 || outRms < 0.0001) return
-
-    // 目标：把输出能量补到接近输入能量；限制 1~4 倍，留 15% 余量避免过冲
-    const target = Math.min(4, Math.max(1, (inRms / outRms) * 0.85))
-    // 慢速平滑，避免抽吸感
-    this.autoGainCurrent += (target - this.autoGainCurrent) * 0.15
-    this.denoiseGainNode.gain.setTargetAtTime(this.autoGainCurrent, this.audioContext.currentTime, 0.05)
-  }
-
-  private _rms = (buf: Float32Array) => {
-    let sum = 0
-    for (let i = 0; i < buf.length; i++) {
-      sum += buf[i] * buf[i]
-    }
-    return Math.sqrt(sum / buf.length)
   }
 
   /**

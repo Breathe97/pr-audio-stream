@@ -161,6 +161,11 @@ const drawSpectrum = () => {
 const init = async () => {
   // 外部创建 AudioContext 后传入，所有远端轨道共用
   audioContext = new AudioContext({ sampleRate: 48000 })
+  // GTCRN 只支持 16k / 48k，系统改写采样率时降噪会静默失效，先提示
+  if (audioContext.sampleRate !== 48000) console.warn(`AudioContext 实际采样率为 ${audioContext.sampleRate}，GTCRN 降噪将不可用`)
+
+  // 保存上一次的实例，重新协商可能多次触发 track，先销毁旧实例避免节点与 worklet 泄漏
+  let lastPrAudio: PrAudioStream | undefined
 
   // 监听远端轨道
   const ontrack = async (e: any) => {
@@ -172,11 +177,12 @@ const init = async () => {
     const audio = new Audio()
     audio.srcObject = stream
 
+    if (lastPrAudio) await lastPrAudio.destroy()
     prAudio = new PrAudioStream(audioContext, stream)
+    lastPrAudio = prAudio
     prAudio.setMute(false) // 取消静音
 
     prAudio.use({ denoise: prDenoise })
-
     const func = () => {
       gain.value = prAudio.getVolume()
       drawSpectrum()
@@ -206,7 +212,7 @@ const addbgs = async () => {
   const url = URL.createObjectURL(blob)
 
   await wavesurfer_bgs.load(url)
-  wavesurfer_bgs.setMuted(true)
+  wavesurfer_bgm.setMuted(true)
 
   const buffer = wavesurfer_bgs.getDecodedData()
 
@@ -233,7 +239,7 @@ const addbgm = async () => {
   const blob = new Blob([arrayBuffer])
   const url = URL.createObjectURL(blob)
   await wavesurfer_bgm.load(url)
-  wavesurfer_bgs.setMuted(true)
+  wavesurfer_bgm.setMuted(true)
 
   const buffer = wavesurfer_bgm.getDecodedData()
 
@@ -255,7 +261,15 @@ const setEnhanceGain = (val: number) => prAudio.setEnhanceGain(val / 100)
 const setBgsGain = (val: number) => prAudio.setBgsGain(val / 100)
 const setBgmGain = (val: number) => prAudio.setBgmGain(val / 100)
 const setOutputGain = (val: number) => prAudio.setOutputGain(val / 100)
-const setDenoise = (state: boolean) => prAudio.setDenoise(state)
+// 降噪切换可能因 worklet 创建失败而抛错，失败时回滚开关，避免 UI 与实际状态不一致
+const setDenoise = async (state: boolean) => {
+  try {
+    await prAudio.setDenoise(state)
+  } catch (error) {
+    denoise.value = !state
+    console.error('降噪切换失败', error)
+  }
+}
 const setMute = (state: boolean) => prAudio.setMute(state)
 const setNotEmpty = (state: boolean) => prAudio.setNotEmpty(state)
 </script>

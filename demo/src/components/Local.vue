@@ -164,6 +164,8 @@ const init = async () => {
 
   // 外部创建 AudioContext 后传入，采样率与采集保持一致
   audioContext = new AudioContext({ sampleRate: 48000 })
+  // GTCRN 只支持 16k / 48k，系统改写采样率时降噪会静默失效，先提示
+  if (audioContext.sampleRate !== 48000) console.warn(`AudioContext 实际采样率为 ${audioContext.sampleRate}，GTCRN 降噪将不可用`)
 
   prAudio = new PrAudioStream(audioContext, stream)
 
@@ -251,7 +253,15 @@ const setEnhanceGain = (val: number) => prAudio.setEnhanceGain(val / 100)
 const setBgsGain = (val: number) => prAudio.setBgsGain(val / 100)
 const setBgmGain = (val: number) => prAudio.setBgmGain(val / 100)
 const setOutputGain = (val: number) => prAudio.setOutputGain(val / 100)
-const setDenoise = (state: boolean) => prAudio.setDenoise(state)
+// 降噪切换可能因 worklet 创建失败而抛错，失败时回滚开关，避免 UI 与实际状态不一致
+const setDenoise = async (state: boolean) => {
+  try {
+    await prAudio.setDenoise(state)
+  } catch (error) {
+    denoise.value = !state
+    console.error('降噪切换失败', error)
+  }
+}
 const setMute = (state: boolean) => prAudio.setMute(state)
 const setNotEmpty = (state: boolean) => prAudio.setNotEmpty(state)
 </script>

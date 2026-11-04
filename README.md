@@ -84,7 +84,6 @@ bgmGainNode ──────────────────────�
 | 方法 | 说明 |
 |------|------|
 | `setDenoise(state)` | 开启/关闭实时降噪（需先调用 `use()` 注入降噪引擎） |
-| `setDenoiseGain(value)` | 设置降噪后的响度补偿：`'auto'` 自动跟随，或 `1~3` 固定倍数（1 = 不补偿） |
 | `setMute(state)` | 静音/取消静音（控制本地扬声器输出） |
 | `setNotEmpty(state)` | 开启/关闭静音保活（静音时填充非空音频数据） |
 | `replaceTrack(track)` | 替换麦克风轨道 |
@@ -141,9 +140,6 @@ prAudio.use({ denoise: prDenoise })
 
 // 开启降噪
 await prAudio.setDenoise(true)
-
-// 响度补偿：'auto' 自动跟随降噪前后能量比，或 1~3 固定倍数（1 = 不补偿）
-prAudio.setDenoiseGain('auto')
 
 // 关闭降噪
 await prAudio.setDenoise(false)
