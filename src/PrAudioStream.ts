@@ -1,13 +1,5 @@
-import { NotEmptyFilterWorklet } from './worklets/NotEmptyFilter'
-
-interface DenoiseWorkletInstance {
-  createDenoiseWorkletNode: () => Promise<AudioWorkletNode>
-  destroy: () => void
-}
-
-interface PrDenoise {
-  DenoiseWorklet: new (audioContext: AudioContext) => DenoiseWorkletInstance
-}
+import { GtcrnDenoise } from './worklets/denoise'
+import { NotEmptyFilterWorklet } from './worklets/not-empty-filter'
 
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （内部自建，仅持有外部传入的音频轨道）
@@ -54,18 +46,21 @@ export class PrAudioStream {
   // 输出节点（处理后的音频）
   destinationNode: MediaStreamAudioDestinationNode
 
+  // 当前上下文采样率是否支持降噪（16k / 48k）
+  denoiseSupported = false
+
   // 是否开启降噪
   denoise = false
 
   // 是否静音
   mute = true
 
-  // 是否强制非空数据
-  notEmpty = false
-
-  denoiseWorklet?: DenoiseWorkletInstance
+  denoiseWorklet = new GtcrnDenoise()
 
   denoiseWorkletNode?: AudioWorkletNode
+
+  // 是否强制非空数据
+  notEmpty = false
 
   notEmptyFilterWorklet = new NotEmptyFilterWorklet()
 
@@ -163,13 +158,12 @@ export class PrAudioStream {
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
     }
     void this.audioContext.resume().catch(() => {}) // 尝试恢复暂停状态
-  }
 
-  /**
-   * 使用降噪插件
-   */
-  use = ({ denoise }: { denoise: PrDenoise }) => {
-    this.denoiseWorklet = new denoise.DenoiseWorklet(this.audioContext)
+    // GTCRN 只支持 16k / 48k，系统改写采样率时降噪不可用，提前暴露
+    this.denoiseSupported = GtcrnDenoise.isSupported(this.audioContext)
+    if (!this.denoiseSupported) {
+      console.warn(`当前 AudioContext 采样率 ${this.audioContext.sampleRate}Hz 不被 GTCRN 支持，降噪将不可用`)
+    }
   }
 
   private _changeSource = () => {
@@ -243,10 +237,9 @@ export class PrAudioStream {
   }
 
   /**
-   * 断开并清空当前注册的降噪节点（不销毁外部 worklet 实例，实例留给 destroy 统一销毁）
+   * 销毁当前降噪节点（节点由 GtcrnDenoise 内部持有，统一走它的 destroy）
    */
   private _destroyDenoiseNode = () => {
-    // 交给引擎自己销毁，避免 processor 空转泄漏
     this.denoiseWorklet?.destroy()
     this.denoiseWorkletNode = undefined
   }
@@ -256,13 +249,17 @@ export class PrAudioStream {
    * @param state 是否开启
    */
   setDenoise = async (state: boolean = true) => {
-    if (!this.denoiseWorklet) return
+    // 采样率不支持直接返回，别让 worklet 内部崩
+    if (state && !this.denoiseSupported) {
+      console.warn(`当前采样率 ${this.audioContext.sampleRate}Hz 不支持 GTCRN 降噪`)
+      return
+    }
     this.inputGainNode.disconnect()
     // 开启
     if (state) {
       // 先清掉上一次注册的节点，避免重复开启导致链路泄漏
       this._destroyDenoiseNode()
-      this.denoiseWorkletNode = await this.denoiseWorklet.createDenoiseWorkletNode()
+      this.denoiseWorkletNode = await this.denoiseWorklet.createDenoiseWorkletNode(this.audioContext)
       this.inputGainNode.connect(this.denoiseWorkletNode)
       // 降噪输出直接接麦克风增强
       this.denoiseWorkletNode.connect(this.enhanceGainNode)
@@ -413,8 +410,8 @@ export class PrAudioStream {
     this.mixAudioMap.clear()
 
     // 销毁当前注册的 worklet 节点与 worklet 实例
+    this.denoiseWorklet.destroy()
     this.notEmptyFilterWorklet.destroy()
-    this.denoiseWorklet?.destroy()
     this.notEmptyFilterWorkletNode = undefined
     this.denoiseWorkletNode = undefined
 

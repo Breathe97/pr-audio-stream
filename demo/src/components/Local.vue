@@ -72,8 +72,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
-import { PrAudioStream } from '../../../src/index'
-import { prDenoise } from 'pr-denoise'
+import { PrAudioStream } from '../../../dist'
 
 const props = defineProps({
   pc: {
@@ -164,12 +163,8 @@ const init = async () => {
 
   // 外部创建 AudioContext 后传入，采样率与采集保持一致
   audioContext = new AudioContext({ sampleRate: 48000 })
-  // GTCRN 只支持 16k / 48k，系统改写采样率时降噪会静默失效，先提示
-  if (audioContext.sampleRate !== 48000) console.warn(`AudioContext 实际采样率为 ${audioContext.sampleRate}，GTCRN 降噪将不可用`)
 
   prAudio = new PrAudioStream(audioContext, stream)
-
-  prAudio.use({ denoise: prDenoise })
 
   // 将流添加至发射器中
   const new_stream = prAudio.getStream()

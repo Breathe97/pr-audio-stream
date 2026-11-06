@@ -73,7 +73,6 @@
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import { PrAudioStream } from '../../../src/index'
-import { prDenoise } from 'pr-denoise'
 
 const props = defineProps({
   pc: {
@@ -161,8 +160,6 @@ const drawSpectrum = () => {
 const init = async () => {
   // 外部创建 AudioContext 后传入，所有远端轨道共用
   audioContext = new AudioContext({ sampleRate: 48000 })
-  // GTCRN 只支持 16k / 48k，系统改写采样率时降噪会静默失效，先提示
-  if (audioContext.sampleRate !== 48000) console.warn(`AudioContext 实际采样率为 ${audioContext.sampleRate}，GTCRN 降噪将不可用`)
 
   // 保存上一次的实例，重新协商可能多次触发 track，先销毁旧实例避免节点与 worklet 泄漏
   let lastPrAudio: PrAudioStream | undefined
@@ -182,7 +179,6 @@ const init = async () => {
     lastPrAudio = prAudio
     prAudio.setMute(false) // 取消静音
 
-    prAudio.use({ denoise: prDenoise })
     const func = () => {
       gain.value = prAudio.getVolume()
       drawSpectrum()
