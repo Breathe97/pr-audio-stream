@@ -11,7 +11,7 @@
 
 - **音量控制** — 麦克风输入、增强、音效(BGS)、背景音乐(BGM)、扬声器输出，五路独立音量控制
 - **音频融合** — 支持即时音效(BGS)和背景音乐(BGM)与麦克风输入混合
-- **噪音抑制** — 集成 [pr-denoise](https://www.npmjs.com/package/pr-denoise)（GTCRN 引擎）实现实时降噪
+- **噪音抑制** — 可插拔降噪引擎，通过 `use()` 注入（如 [pr-denoise](https://www.npmjs.com/package/pr-denoise)，GTCRN 引擎），库本身不绑定模型
 - **静音保活** — 静音时自动填充非空音频数据，确保音频流持续活跃（WebRTC 场景下避免轨道休眠）
 - **音频分析** — 内置频谱分析器，实时获取音量/频域数据
 - **频谱可视化** — 通过 AnalyserNode 支持自定义频谱绘制
@@ -92,7 +92,7 @@ bgmGainNode ──────────────────────�
 | `getVolume()` | 获取当前音量值（0~255） |
 | `stop()` | 停止音频采集 |
 | `destroy()` | 销毁本类注册的节点与输出流（不关闭外部传入的 AudioContext） |
-| `use({ denoise })` | 注入降噪插件（GTCRN 引擎） |
+| `use({ denoise })` | 注入降噪插件（降噪引擎） |
 
 ### 音频融合
 
@@ -125,7 +125,7 @@ analyserNode.getByteFrequencyData(analyserArrayData)
 
 ## 降噪功能
 
-需要额外安装 [pr-denoise](https://www.npmjs.com/package/pr-denoise) 包：
+降噪引擎由外部注入，库不内置任何模型。安装对应的降噪包（如 [pr-denoise](https://www.npmjs.com/package/pr-denoise)，GTCRN 引擎）：
 
 ```bash
 npm i pr-denoise
@@ -144,6 +144,29 @@ await prAudio.setDenoise(true)
 // 关闭降噪
 await prAudio.setDenoise(false)
 ```
+
+未调用 `use()` 就调 `setDenoise(true)` 会直接抛错，不会静默失败。
+
+### 自定义降噪插件
+
+任何满足以下契约的引擎都能注入：
+
+```ts
+export interface DenoiseWorkletInstance {
+  createDenoiseWorkletNode: () => Promise<AudioWorkletNode>
+  destroy: () => void
+}
+
+export interface DenoisePlugin {
+  DenoiseWorklet: new (audioContext: AudioContext) => DenoiseWorkletInstance
+  isSupported?: (audioContext: AudioContext) => boolean
+}
+```
+
+- `DenoiseWorklet`：构造时传入 `AudioContext`，`createDenoiseWorkletNode()` 负责加载 worklet / 模型并返回节点。
+- `isSupported`：可选，用于采样率等能力校验；返回 `false` 时 `setDenoise(true)` 只告警不开启。
+- 未提供 `isSupported` 时默认视为支持。
+- 降噪过程中切换引擎会自动拆旧节点并重建链路。
 
 ## 静音保活
 
@@ -183,25 +206,22 @@ pc.addEventListener('track', (e) => {
 ```
 pr-audio-stream/
 ├── src/
-│   ├── index.ts                 # 入口文件
-│   ├── PrAudioStream.ts         # 核心音频处理类
-│   ├── vite-env.d.ts            # Vite 类型声明
+│   ├── index.ts                     # 入口文件
+│   ├── PrAudioStream.ts             # 核心音频处理类
+│   ├── vite-env.d.ts                # Vite 类型声明
 │   └── worklets/
-│       └── NotEmptyFilter.ts    # 静音保活 AudioWorklet 封装
-├── public/
-│   └── not-empty-filter/
-│       └── not-empty-filter.js  # 静音保活 AudioWorkletProcessor
-├── demo/                        # Vue 3 演示应用
+│       └── not-empty-filter/        # 静音保活 AudioWorklet（封装 + processor）
+├── demo/                            # Vue 3 演示应用（通过 pr-denoise 注入降噪）
 │   ├── src/
-│   │   ├── App.vue              # 主页面（WebRTC 对等连接）
+│   │   ├── App.vue                  # 主页面（WebRTC 对等连接）
 │   │   ├── components/
-│   │   │   ├── Local.vue        # 发送端（麦克风 → 处理 → 发送）
-│   │   │   └── Remote.vue       # 接收端（接收 → 处理 → 播放）
-│   │   └── main.ts              # 入口（Element Plus 集成）
+│   │   │   ├── Local.vue            # 发送端（麦克风 → 处理 → 发送）
+│   │   │   └── Remote.vue           # 接收端（接收 → 处理 → 播放）
+│   │   └── main.ts                  # 入口（Element Plus 集成）
 │   └── package.json
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts               # Vite 库模式构建配置
+└── vite.config.ts                   # Vite 库模式构建配置
 ```
 
 ## 开发

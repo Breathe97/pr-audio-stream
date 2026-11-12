@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
+import { prDenoise } from 'pr-denoise'
 import { PrAudioStream } from '../../../src/index'
 
 const props = defineProps({
@@ -176,6 +177,8 @@ const init = async () => {
 
     if (lastPrAudio) await lastPrAudio.destroy()
     prAudio = new PrAudioStream(audioContext, stream)
+    // 降噪引擎由外部注入，换模型只需换对应插件
+    prAudio.use({ denoise: prDenoise })
     lastPrAudio = prAudio
     prAudio.setMute(false) // 取消静音
 

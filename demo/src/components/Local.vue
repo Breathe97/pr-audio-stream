@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
+import { prDenoise } from 'pr-denoise'
 import { PrAudioStream } from '../../../src/index'
 
 const props = defineProps({
@@ -165,6 +166,8 @@ const init = async () => {
   audioContext = new AudioContext({ sampleRate: 48000 })
 
   prAudio = new PrAudioStream(audioContext, stream)
+  // 降噪引擎由外部注入，换模型只需换对应插件
+  prAudio.use({ denoise: prDenoise })
 
   // 将流添加至发射器中
   const new_stream = prAudio.getStream()

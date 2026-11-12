@@ -1,5 +1,17 @@
-import { GtcrnDenoise } from './worklets/denoise'
 import { NotEmptyFilterWorklet } from './worklets/not-empty-filter'
+
+// 降噪引擎实例契约：插件内自己负责加载 worklet / 模型并返回节点
+export interface DenoiseWorkletInstance {
+  createDenoiseWorkletNode: () => Promise<AudioWorkletNode>
+  destroy: () => void
+}
+
+// 降噪插件契约，例如 pr-denoise 导出的 prDenoise
+export interface DenoisePlugin {
+  DenoiseWorklet: new (audioContext: AudioContext) => DenoiseWorkletInstance
+  // 可选的采样率等能力校验，未提供时视为支持
+  isSupported?: (audioContext: AudioContext) => boolean
+}
 
 export class PrAudioStream {
   inputStream = new MediaStream() // 输入音频流 （内部自建，仅持有外部传入的音频轨道）
@@ -46,8 +58,8 @@ export class PrAudioStream {
   // 输出节点（处理后的音频）
   destinationNode: MediaStreamAudioDestinationNode
 
-  // 当前上下文采样率是否支持降噪（16k / 48k）
-  denoiseSupported = false
+  // 当前上下文采样率是否支持注入的降噪引擎（由插件决定，未注入前不参与判断）
+  denoiseSupported = true
 
   // 是否开启降噪
   denoise = false
@@ -55,7 +67,8 @@ export class PrAudioStream {
   // 是否静音
   mute = true
 
-  denoiseWorklet = new GtcrnDenoise()
+  // 降噪引擎实例（由 use() 注入后创建，未注入时为 undefined）
+  denoiseWorklet?: DenoiseWorkletInstance
 
   denoiseWorkletNode?: AudioWorkletNode
 
@@ -158,11 +171,28 @@ export class PrAudioStream {
       outputGainNode.connect(this.audioContext.destination) // 音量输出控制节点 - 本地控制输出节点
     }
     void this.audioContext.resume().catch(() => {}) // 尝试恢复暂停状态
+  }
 
-    // GTCRN 只支持 16k / 48k，系统改写采样率时降噪不可用，提前暴露
-    this.denoiseSupported = GtcrnDenoise.isSupported(this.audioContext)
+  /**
+   * 注入降噪引擎（未注入前 setDenoise 会报错，不同模型只需实现 DenoisePlugin 契约）
+   * @param denoise 降噪插件，例如 pr-denoise 导出的 prDenoise
+   */
+  use = ({ denoise }: { denoise: DenoisePlugin }) => {
+    const wasDenoising = this.denoise
+    // 换引擎前先拆旧引擎的节点与内部资源，避免链路泄漏
+    this._destroyDenoiseNode()
+
+    this.denoiseWorklet = new denoise.DenoiseWorklet(this.audioContext)
+    // 插件未提供 isSupported 时默认视为支持
+    this.denoiseSupported = denoise.isSupported ? denoise.isSupported(this.audioContext) : true
     if (!this.denoiseSupported) {
-      console.warn(`当前 AudioContext 采样率 ${this.audioContext.sampleRate}Hz 不被 GTCRN 支持，降噪将不可用`)
+      console.warn(`当前 AudioContext 采样率 ${this.audioContext.sampleRate}Hz 不被注入的降噪引擎支持，降噪将不可用`)
+    }
+
+    // 正在降噪时换引擎，重建链路
+    if (wasDenoising && this.denoiseSupported) {
+      this.denoise = false
+      void this.setDenoise(true).catch((error) => console.error('切换降噪引擎后重建链路失败', error))
     }
   }
 
@@ -237,7 +267,7 @@ export class PrAudioStream {
   }
 
   /**
-   * 销毁当前降噪节点（节点由 GtcrnDenoise 内部持有，统一走它的 destroy）
+   * 销毁当前降噪节点（节点由降噪引擎内部持有，统一走它的 destroy）
    */
   private _destroyDenoiseNode = () => {
     this.denoiseWorklet?.destroy()
@@ -249,17 +279,23 @@ export class PrAudioStream {
    * @param state 是否开启
    */
   setDenoise = async (state: boolean = true) => {
-    // 采样率不支持直接返回，别让 worklet 内部崩
+    // 先取一次，避免后续判断与使用时读到不同实例
+    const denoiseWorklet = this.denoiseWorklet
+    // 开启前必须已注入引擎，否则直接报错，别静默失败让人误以为降噪生效了
+    if (state && !denoiseWorklet) {
+      throw new Error('未注入降噪引擎，请先调用 use({ denoise })')
+    }
+    // 引擎不支持当前采样率直接返回，别让 worklet 内部崩
     if (state && !this.denoiseSupported) {
-      console.warn(`当前采样率 ${this.audioContext.sampleRate}Hz 不支持 GTCRN 降噪`)
+      console.warn(`当前采样率 ${this.audioContext.sampleRate}Hz 不被当前降噪引擎支持`)
       return
     }
     this.inputGainNode.disconnect()
     // 开启
-    if (state) {
+    if (state && denoiseWorklet) {
       // 先清掉上一次注册的节点，避免重复开启导致链路泄漏
       this._destroyDenoiseNode()
-      this.denoiseWorkletNode = await this.denoiseWorklet.createDenoiseWorkletNode(this.audioContext)
+      this.denoiseWorkletNode = await denoiseWorklet.createDenoiseWorkletNode()
       this.inputGainNode.connect(this.denoiseWorkletNode)
       // 降噪输出直接接麦克风增强
       this.denoiseWorkletNode.connect(this.enhanceGainNode)
@@ -410,7 +446,8 @@ export class PrAudioStream {
     this.mixAudioMap.clear()
 
     // 销毁当前注册的 worklet 节点与 worklet 实例
-    this.denoiseWorklet.destroy()
+    this.denoiseWorklet?.destroy()
+    this.denoiseWorklet = undefined
     this.notEmptyFilterWorklet.destroy()
     this.notEmptyFilterWorkletNode = undefined
     this.denoiseWorkletNode = undefined
