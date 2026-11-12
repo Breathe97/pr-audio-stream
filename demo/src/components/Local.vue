@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
-import { PrAudioStream } from '../../../dist'
+import { PrAudioStream } from '../../../src/index'
 
 const props = defineProps({
   pc: {
